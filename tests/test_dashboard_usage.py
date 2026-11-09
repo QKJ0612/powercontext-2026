@@ -140,6 +140,39 @@ def test_feedback_is_reported_idempotent_and_scope_bound(dashboard, tmp_path):
     assert form["reason"] not in forged.text
 
 
+def test_feedback_edit_preserves_reason_and_allows_explicit_clear(dashboard):
+    scope = create_scope(dashboard, "Edit feedback")["scope_id"]
+    _, url = prepare(dashboard, scope)
+    endpoint = "/dashboard/usage/feedback?lang=en"
+    reason = 'Useful context <note> & "details"\n</textarea><script>alert(1)</script>'
+    form = {**form_for(dashboard.get(url), scope, url), "reason": reason}
+    saved = dashboard.post(endpoint, data=form, headers={"Origin": "http://testserver"})
+    assert saved.status_code == 200, saved.text
+
+    def editor_reason(page):
+        match = re.search(r'<textarea[^>]*name="reason"[^>]*>(.*?)</textarea>', page.text, re.S)
+        assert match is not None, page.text
+        return unescape(match[1])
+
+    assert editor_reason(saved) == reason
+    assert "<script>alert(1)</script>" not in saved.text
+    edited = {
+        **form_for(saved, scope, url),
+        "adoption": "no",
+        "reason": editor_reason(saved),
+    }
+    updated = dashboard.post(endpoint, data=edited, headers={"Origin": "http://testserver"})
+    assert updated.status_code == 200, updated.text
+    assert editor_reason(updated) == reason
+    cleared = dashboard.post(
+        endpoint,
+        data={**form_for(updated, scope, url), "reason": ""},
+        headers={"Origin": "http://testserver"},
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert editor_reason(cleared) == ""
+
+
 def test_viewer_cannot_submit_feedback_or_read_another_scope(dashboard, monkeypatch):
     scope = create_scope(dashboard, "Private preparation")["scope_id"]
     _, url = prepare(dashboard, scope)
