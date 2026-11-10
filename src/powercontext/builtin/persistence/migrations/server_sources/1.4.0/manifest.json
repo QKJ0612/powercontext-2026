@@ -47,6 +47,10 @@
     "v1_5_0_004": [
       "schemas/sqlite-v1_5_0_004.json",
       "schemas/mysql-v1_5_0_004.json"
+    ],
+    "v1_5_0_005": [
+      "schemas/sqlite-v1_5_0_005.json",
+      "schemas/mysql-v1_5_0_005.json"
     ]
   },
   "sqlite_baselines": {
@@ -85,6 +89,9 @@
     ],
     "v1_5_0_004": [
       "cfafc8c1d4f0207e5d04febca1e3f9f9a91948d15fb85678de3765d8e772efdc"
+    ],
+    "v1_5_0_005": [
+      "833cd397b4f12d652aa966b864fc4173f7ca99c901fc05078a2ad6ac7f1ed18e"
     ]
   },
   "affected_objects": [
@@ -202,7 +209,15 @@
     "pc_topic_memory_topic_fts_docsize",
     "pc_topic_memory_topic_fts_idx",
     "pc_topic_memory_work_blocks",
-    "pc_topic_memory_work_budgets"
+    "pc_topic_memory_work_budgets",
+    "pc_rate_limit_windows",
+    "pc_runtime_members",
+    "pc_scheduler_leases",
+    "pc_scheduler_scans",
+    "pc_work_attempts",
+    "pc_work_items",
+    "pc_work_keys",
+    "pc_work_lanes"
   ],
   "readiness_scope": "server",
   "retained_objects": [
@@ -340,6 +355,11 @@
       "artifact_storage",
       "portable_storage",
       "atomic_memory_evidence_projection"
+    ],
+    "v1_5_0_005": [
+      "artifact_storage",
+      "portable_storage",
+      "atomic_memory_evidence_projection"
     ]
   },
   "retained_fingerprints": {
@@ -361,7 +381,8 @@
     "schemas/mysql-v1_5_0_001.json",
     "schemas/mysql-v1_5_0_002.json",
     "schemas/mysql-v1_5_0_003.json",
-    "schemas/mysql-v1_5_0_004.json"
+    "schemas/mysql-v1_5_0_004.json",
+    "schemas/mysql-v1_5_0_005.json"
   ],
   "mysql_history": "mysql",
   "mysql_schema_extensions": {
