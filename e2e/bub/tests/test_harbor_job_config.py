@@ -464,6 +464,19 @@ def test_bub_runtime_install_does_not_use_the_task_images_pip_index(
     assert install_env["PIP_INDEX_URL"] == expected
 
 
+def test_bub_install_keeps_harbor_runner_sdk_separate_from_server_sdk(tmp_path: Path) -> None:
+    environment = _RecordingEnvironment()
+
+    asyncio.run(PowerContextBubAcpAgent(logs_dir=tmp_path, powercontext=False).install(environment))
+
+    # Harbor 0.16 imports text_block, which ACP 1.0 removed. Bub's server needs 1.0rc2
+    # in its own tool environment, so pinning only that server does not fix the runner.
+    runner_installs = [command for command in environment.commands if "/bin/pip install" in command]
+    assert any("/opt/harbor-acp-venv/bin/pip install agent-client-protocol==0.12.1" in c for c in runner_installs)
+    server_installs = [command for command in environment.commands if "/bub install" in command]
+    assert any("agent-client-protocol==1.0.0rc2" in command for command in server_installs)
+
+
 def _opencode_agent(tmp_path: Path, *, powercontext: bool) -> PowerContextOpenCodeAgent:
     return PowerContextOpenCodeAgent(
         logs_dir=tmp_path,

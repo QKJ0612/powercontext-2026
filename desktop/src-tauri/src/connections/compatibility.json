@@ -654,7 +654,13 @@
       "remember_memory",
       "search_memory"
     ],
-    "evidence": "desktop/VALIDATION.md#server-112db11e-protocol-qualification"
+    "evidence": "desktop/VALIDATION.md#server-112db11e-protocol-qualification",
+    "authenticatedClients": {
+      "32d75b58058ae0a9a3e159f47d67ab421649cefe86f662e12e75b4215f1f35d9": "desktop/VALIDATION.md#authenticated-server-112db11e-current-client-qualification",
+      "6d7cc69254c757895f82a5f71db1676f35fb85d97c268a806679180d38068f18": "desktop/VALIDATION.md#server-afa13bcb-current-client-qualification",
+      "9aabe2565d9cbd36075be03a83b7370e07e38e9f25232e20dd47812aba65e508": "desktop/VALIDATION.md#server-7d89a97a-identity-runtime-and-statistics-qualification",
+      "e54d69cdcbeef19a816e92670901aacda9c7e44df289c88c18ad5ae364a6efeb": "desktop/VALIDATION.md#server-63feca70-identity-and-statistics-product-qualification"
+    }
   },
   {
     "id": "sqlite-atomic-9624761b-v1",
@@ -796,7 +802,12 @@
       "remember_memory",
       "search_memory"
     ],
-    "evidence": "desktop/VALIDATION.md#server-3cefa45a-protocol-qualification"
+    "evidence": "desktop/VALIDATION.md#server-3cefa45a-protocol-qualification",
+    "authenticatedClients": {
+      "6d7cc69254c757895f82a5f71db1676f35fb85d97c268a806679180d38068f18": "desktop/VALIDATION.md#server-afa13bcb-current-client-qualification",
+      "9aabe2565d9cbd36075be03a83b7370e07e38e9f25232e20dd47812aba65e508": "desktop/VALIDATION.md#server-7d89a97a-identity-runtime-and-statistics-qualification",
+      "e54d69cdcbeef19a816e92670901aacda9c7e44df289c88c18ad5ae364a6efeb": "desktop/VALIDATION.md#server-63feca70-identity-and-statistics-product-qualification"
+    }
   },
   {
     "id": "sqlite-atomic-afa13bcb-v1",
