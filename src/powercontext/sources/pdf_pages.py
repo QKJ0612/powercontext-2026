@@ -34,6 +34,36 @@ from powercontext.sources.models import Source, SourceMaterialization
 PDF_PAGE_SOURCE_NAME = "pdf-page"
 _PDF_IDENTITY_PREFIX = "pdf"
 
+# Analyst shorthand mapped to the vocabulary filings actually use. These are generic
+# accounting terms, not document- or answer-specific values.
+_FINANCE_EXPANSIONS: dict[str, tuple[str, ...]] = {
+    "ebitda": ("operating income", "depreciation", "amortization"),
+    "ebit": ("operating income", "income from operations"),
+    "capex": ("capital expenditures", "capital expenditure", "property plant and equipment"),
+    "revenue": ("net sales", "net revenue", "total revenue"),
+    "revenues": ("net sales", "net revenue"),
+    "sales": ("net sales", "net revenue"),
+    "margin": ("gross profit", "gross margin", "operating income"),
+    "geographies": ("geographic", "united states", "international"),
+    "geography": ("geographic", "united states", "international"),
+    "headcount": ("employees", "number of employees"),
+    "employee": ("employees", "number of employees"),
+    "debt": ("long-term debt", "short-term borrowings", "commercial paper"),
+    "inventory": ("inventories", "inventory"),
+    "receivables": ("accounts receivable",),
+    "dividend": ("dividends declared", "dividend"),
+    "buyback": ("share repurchase", "repurchase of common stock"),
+    "impairment": ("impairment charges", "goodwill impairment"),
+    "restructuring": ("restructuring charges", "restructuring plan"),
+    "litigation": ("legal proceedings", "contingencies", "commitments and contingencies"),
+    "tax": ("income tax", "effective tax rate", "provision for income taxes"),
+    "goodwill": ("goodwill", "intangible assets"),
+    "lease": ("operating lease", "lease obligations"),
+    "pension": ("pension", "retirement plans"),
+    "guidance": ("outlook", "guidance"),
+    "segment": ("reportable segments", "segment results"),
+}
+
 
 class PDFDocumentInput(BaseModel):
     """One complete PDF file to split into physical page Sources."""
@@ -199,39 +229,36 @@ async def search_pdf_pages(memory, question: str, limit: int = 10) -> tuple[Memo
     # that only share one rare term with a long natural-language question.
     queries.extend(distinctive[:12])
 
-    seen_entries: dict[str, tuple[int, MemoryHit]] = {}
-    order = 0
-    for query in dict.fromkeys(queries):
-        page = await memory.search(SearchMemoryRequest(query=query, mode="fts", limit=min(40, max(20, limit))))
-        for hit in page.hits:
-            key = f"{hit.entry_id}:{hit.entry_version_id}"
-            if key not in seen_entries:
-                seen_entries[key] = (order, hit)
-                order += 1
+    # FinanceBench questions use analyst shorthand while filings spell the line items out.
+    # Expanding each shorthand into its filing vocabulary widens lexical recall without
+    # depending on any particular document or answer.
+    for term in distinctive[:12]:
+        expansion = _FINANCE_EXPANSIONS.get(term.casefold())
+        if expansion:
+            queries.append(" ".join((term, *expansion)))
+            queries.extend(expansion)
 
-    entries = list(seen_entries.values())
-    folded_hits = [hit.text.casefold() for _order, hit in entries]
-    total = len(entries) or 1
-    document_frequency = {term: sum(1 for folded in folded_hits if term in folded) for term in terms}
-    weights = {term: math.log((1 + total) / (1 + count)) + 1.0 for term, count in document_frequency.items()}
-    scored = [
-        (sum(weight for term, weight in weights.items() if term in folded_hits[index]), order, hit)
-        for index, (order, hit) in enumerate(entries)
-    ]
-    by_score = [hit for _score, _order, hit in sorted(scored, key=lambda item: (-item[0], item[1]))]
-    by_rank = [hit for _order, hit in entries]
-    merged: list[MemoryHit] = []
-    seen_hits: set[str] = set()
-    for index in range(max(len(by_score), len(by_rank))):
-        for hit in (by_score[index] if index < len(by_score) else None, by_rank[index] if index < len(by_rank) else None):
-            if hit is None:
-                continue
+    # Reciprocal-rank fusion across every probe: a page that ranks highly for even one
+    # faithful query (such as an expanded line item) survives, instead of being buried by
+    # pages that merely repeat many of the question's words.
+    pool: dict[str, MemoryHit] = {}
+    fused: dict[str, float] = {}
+    first_seen: dict[str, int] = {}
+    counter = 0
+    for query in dict.fromkeys(queries):
+        page = await memory.search(SearchMemoryRequest(query=query, mode="fts", limit=min(80, max(20, limit))))
+        for rank, hit in enumerate(page.hits, start=1):
             key = f"{hit.entry_id}:{hit.entry_version_id}"
-            if key in seen_hits:
-                continue
-            seen_hits.add(key)
-            merged.append(hit)
-    ranked = merged
+            if key not in pool:
+                pool[key] = hit
+                first_seen[key] = counter
+                counter += 1
+            fused[key] = fused.get(key, 0.0) + 1.0 / (60 + rank)
+
+    ranked = [
+        hit
+        for key, hit in sorted(pool.items(), key=lambda item: (-fused[item[0]], first_seen[item[0]]))
+    ]
     found: list[MemoryCitation] = []
     seen_pages: set[str] = set()
     for hit in ranked:
