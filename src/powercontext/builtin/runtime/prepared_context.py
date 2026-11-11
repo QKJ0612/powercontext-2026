@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from itertools import chain
@@ -93,6 +94,16 @@ class PreparedContextOmissions:
 
 
 @dataclass(frozen=True)
+class PreparedEvidenceFragment:
+    """One literal evidence span selected from a Memory entry by the query."""
+
+    address: MemoryEntryAddress
+    start: int
+    end: int
+    text: str
+
+
+@dataclass(frozen=True)
 class PreparedContextBuild:
     """Final public context and the exact origins selected to produce it.
 
@@ -106,6 +117,7 @@ class PreparedContextBuild:
     origins: tuple[PreparedContextOrigin, ...]
     omissions: PreparedContextOmissions = PreparedContextOmissions()
     code_origins: tuple[CodeEvidenceRef, ...] = ()
+    fragments: tuple[PreparedEvidenceFragment, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -234,6 +246,24 @@ class PreparedContextBuilder:
             raise PreparedContextInvariantError("topic-memory-candidate-limit")
         if sum(len(candidates.hits) for candidates in experience_candidates) > self.experience_candidate_limit:
             raise PreparedContextInvariantError("experience-candidate-limit")
+
+        if request.evidence_selection:
+            selected, fragment_origins, fragments = self._select_evidence(
+                request=request,
+                current_scope_id=current_scope_id,
+                memory_candidates=memory_candidates,
+            )
+            if selected is None:
+                return PreparedContextBuild(context=self.empty(), origins=())
+            return PreparedContextBuild(
+                context=PreparedContext(
+                    status="ready",
+                    content=selected,
+                    content_bytes=len(selected.encode("utf-8")),
+                ),
+                origins=fragment_origins,
+                fragments=fragments,
+            )
 
         content, origins, omissions = self._select_entries(
             request=request,
@@ -432,6 +462,47 @@ class PreparedContextBuilder:
             return None, (), omissions
         content = render_context_text(included, assembly)
         return content, tuple(origins), omissions
+
+    def _select_evidence(
+        self,
+        *,
+        request: PrepareContextRequest,
+        current_scope_id: str | None,
+        memory_candidates: Sequence[PreparedMemoryCandidates],
+    ) -> tuple[str | None, tuple[PreparedContextOrigin, ...], tuple[PreparedEvidenceFragment, ...]]:
+        """Select query-relevant literal spans instead of whole entries."""
+
+        tokens = _query_tokens(request.query)
+        fragments: list[PreparedEvidenceFragment] = []
+        seen: set[tuple[str, str, int, int]] = set()
+        for candidates in memory_candidates:
+            scope_id = candidates.scope_id or current_scope_id or ""
+            for hit in candidates.hits:
+                if not hit.text.strip():
+                    continue
+                address = MemoryEntryAddress(
+                    memory=ArtifactAddress(scope_id=scope_id, artifact=hit.memory_ref),
+                    entry_id=hit.entry_id,
+                    entry_version_id=hit.entry_version_id,
+                )
+                for start, end in _evidence_spans(hit.text, tokens):
+                    identity = (hit.entry_id, hit.entry_version_id, start, end)
+                    if identity in seen or start >= end:
+                        continue
+                    fragment = PreparedEvidenceFragment(
+                        address=address,
+                        start=start,
+                        end=end,
+                        text=hit.text[start:end],
+                    )
+                    if len(_render_fragments((*fragments, fragment)).encode("utf-8")) > request.max_bytes:
+                        continue
+                    seen.add(identity)
+                    fragments.append(fragment)
+        if not fragments:
+            return None, (), ()
+        selected = tuple(fragments)
+        return _render_fragments(selected), tuple(fragment.address for fragment in selected), selected
 
     def _profile_entries(self, candidates: Sequence[PreparedProfileCandidate]) -> tuple[_PreparedContextEntry, ...]:
         entries = []
@@ -728,3 +799,69 @@ def _truncate_utf8(text: str, byte_budget: int) -> str:
     prefix_budget = byte_budget - len(_ELLIPSIS.encode("utf-8"))
     encoded_prefix = text.encode("utf-8")[:prefix_budget]
     return f"{encoded_prefix.decode('utf-8', errors='ignore')}{_ELLIPSIS}"
+
+
+def _query_tokens(query: str) -> tuple[str, ...]:
+    """Split a query into the literal tokens used for span selection."""
+
+    folded = query.casefold()
+    tokens = [token for token in (part for part in re.split(r"[^\w]+", folded) if len(part) >= 3)]
+    for run in re.findall(r"[\u4e00-\u9fff]{2,}", folded):
+        tokens.append(run)
+        tokens.extend(run[index : index + 2] for index in range(len(run) - 1))
+    return tuple(dict.fromkeys(tokens))
+
+
+def _evidence_spans(text: str, tokens: Sequence[str]) -> tuple[tuple[int, int], ...]:
+    """Pick the literal window that covers the most distinct query tokens."""
+
+    if not text:
+        return ()
+    haystack = text.casefold()
+    occurrences: list[tuple[int, str]] = []
+    for token in tokens:
+        start = 0
+        while True:
+            position = haystack.find(token, start)
+            if position < 0 or len(occurrences) > 1024:
+                break
+            occurrences.append((position, token))
+            start = position + 1
+    if not occurrences:
+        head = text[:200]
+        return ((0, len(head)),) if head else ()
+
+    best_score: tuple[int, int] | None = None
+    best_span = (0, min(len(text), 200))
+    for position, _token in occurrences:
+        start = max(0, position - 160)
+        end = min(len(text), position + 160)
+        covered = {token for other, token in occurrences if start <= other < end}
+        score = (len(covered), -start)
+        if best_score is None or score > best_score:
+            best_score = score
+            best_span = (start, end)
+    return (best_span,)
+
+
+def _render_fragments(fragments: Sequence[PreparedEvidenceFragment]) -> str:
+    envelope = {
+        "trust": "untrusted_history",
+        "items": [
+            {
+                "citation": {
+                    "scope_id": fragment.address.memory.scope_id,
+                    "memory_ref": fragment.address.memory.artifact.model_dump(mode="json"),
+                    "entry_id": fragment.address.entry_id,
+                    "entry_version_id": fragment.address.entry_version_id,
+                },
+                "content": fragment.text,
+                "start": fragment.start,
+                "end": fragment.end,
+                "truncated": False,
+            }
+            for fragment in fragments
+        ],
+    }
+    encoded = json.dumps(envelope, ensure_ascii=False, separators=(",", ":"))
+    return "\n\n".join((TRUST_POLICY, f"{_BEGIN_MARKER}\n{encoded}\n{_END_MARKER}"))
