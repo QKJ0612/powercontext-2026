@@ -23,7 +23,8 @@ from urllib.parse import quote
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pypdf import PdfReader
 
-from powercontext.builtin.artifacts.memory.models import MemoryCitation
+from powercontext.builtin.artifacts.memory.models import MemoryCitation, MemoryHit
+from powercontext.builtin.artifacts.search import analyze_fts_query
 from powercontext.builtin.runtime import GetMemoryEntryRequest, SearchMemoryRequest
 from powercontext.limits import MAX_SOURCE_ID_LENGTH
 from powercontext.sources import TEXT_EVIDENCE_PROJECTION_KEY, AdapterSourceDefinition, TextEvidence
@@ -179,10 +180,33 @@ async def search_pdf_pages(memory, question: str, limit: int = 10) -> tuple[Memo
 
     if limit < 1 or not question.strip():
         return ()
-    page = await memory.search(SearchMemoryRequest(query=question, mode="fts", limit=min(200, max(limit * 6, limit))))
+
+    terms = analyze_fts_query(question).split()
+    queries = [question]
+    if len(terms) > 3:
+        unique = list(dict.fromkeys(terms))
+        queries.append(" ".join(unique[:5]))
+        stride = max(1, len(unique) // 5)
+        queries.append(" ".join(unique[::stride][:5]))
+
+    seen_entries: dict[str, tuple[int, MemoryHit]] = {}
+    order = 0
+    for query in dict.fromkeys(queries):
+        page = await memory.search(SearchMemoryRequest(query=query, mode="fts", limit=min(100, limit * 5)))
+        for hit in page.hits:
+            key = f"{hit.entry_id}:{hit.entry_version_id}"
+            if key not in seen_entries:
+                seen_entries[key] = (order, hit)
+                order += 1
+
+    def coverage(hit: MemoryHit) -> int:
+        folded = hit.text.casefold()
+        return sum(1 for term in terms if term in folded)
+
+    ranked = sorted(seen_entries.values(), key=lambda item: (-coverage(item[1]), item[0]))
     found: list[MemoryCitation] = []
-    seen: set[str] = set()
-    for hit in page.hits:
+    seen_pages: set[str] = set()
+    for _rank, hit in ranked:
         citation = MemoryCitation(
             memory_ref=hit.memory_ref,
             entry_id=hit.entry_id,
@@ -192,12 +216,10 @@ async def search_pdf_pages(memory, question: str, limit: int = 10) -> tuple[Memo
             entry = await memory.get(GetMemoryEntryRequest(citation=citation))
         except Exception:  # noqa: BLE001 - a citation that no longer resolves is simply skipped.
             continue
-        page_sources = [reference.source_id for reference in entry.entry.sources if reference.source_type == PDF_PAGE_SOURCE_NAME]
-        if not page_sources:
+        page_sources = [ref.source_id for ref in entry.entry.sources if ref.source_type == PDF_PAGE_SOURCE_NAME]
+        if not page_sources or any(source_id in seen_pages for source_id in page_sources):
             continue
-        if all(source_id in seen for source_id in page_sources):
-            continue
-        seen.update(page_sources)
+        seen_pages.update(page_sources)
         found.append(citation)
         if len(found) >= limit:
             break

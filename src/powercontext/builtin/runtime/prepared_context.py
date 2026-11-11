@@ -470,12 +470,11 @@ class PreparedContextBuilder:
         current_scope_id: str | None,
         memory_candidates: Sequence[PreparedMemoryCandidates],
     ) -> tuple[str | None, tuple[PreparedContextOrigin, ...], tuple[PreparedEvidenceFragment, ...]]:
-        """Select query-relevant literal spans instead of whole entries."""
+        """Select query-relevant literal sentences instead of whole entries."""
 
         tokens = _query_tokens(request.query)
-        fragments: list[PreparedEvidenceFragment] = []
-        seen: set[tuple[str, str, int, int]] = set()
-        for candidates in memory_candidates:
+        pool: list[tuple[int, int, int, MemoryEntryAddress, int, int, str]] = []
+        for group_index, candidates in enumerate(memory_candidates):
             scope_id = candidates.scope_id or current_scope_id or ""
             for hit in candidates.hits:
                 if not hit.text.strip():
@@ -485,24 +484,21 @@ class PreparedContextBuilder:
                     entry_id=hit.entry_id,
                     entry_version_id=hit.entry_version_id,
                 )
-                for start, end in _evidence_spans(hit.text, tokens):
-                    identity = (hit.entry_id, hit.entry_version_id, start, end)
-                    if identity in seen or start >= end:
-                        continue
-                    fragment = PreparedEvidenceFragment(
-                        address=address,
-                        start=start,
-                        end=end,
-                        text=hit.text[start:end],
-                    )
-                    if len(_render_fragments((*fragments, fragment)).encode("utf-8")) > request.max_bytes:
-                        continue
-                    seen.add(identity)
-                    fragments.append(fragment)
+                for start, end in _sentence_spans(hit.text):
+                    body = hit.text[start:end]
+                    pool.append((_span_score(body, tokens), group_index, start, address, start, end, body))
+
+        pool.sort(key=lambda item: (-item[0], item[1], item[2]))
+        fragments: list[PreparedEvidenceFragment] = []
+        for _score, _group, _start, address, start, end, body in pool:
+            fragment = PreparedEvidenceFragment(address=address, start=start, end=end, text=body)
+            if len(_render_fragments((*fragments, fragment)).encode("utf-8")) > request.max_bytes:
+                continue
+            fragments.append(fragment)
         if not fragments:
             return None, (), ()
         selected = tuple(fragments)
-        return _render_fragments(selected), tuple(fragment.address for fragment in selected), selected
+        return _render_fragments(selected), tuple(item.address for item in selected), selected
 
     def _profile_entries(self, candidates: Sequence[PreparedProfileCandidate]) -> tuple[_PreparedContextEntry, ...]:
         entries = []
@@ -801,47 +797,61 @@ def _truncate_utf8(text: str, byte_budget: int) -> str:
     return f"{encoded_prefix.decode('utf-8', errors='ignore')}{_ELLIPSIS}"
 
 
+_EVIDENCE_STOPWORDS = frozenset(
+    {
+        "the", "and", "for", "with", "that", "this", "from", "was", "were", "are", "have", "has", "had",
+        "not", "but", "its", "their", "which", "what", "when", "who", "how", "why", "into", "than", "then",
+        "also", "such", "can", "may", "use", "used", "using", "between", "during", "after", "before",
+        "more", "most", "some", "any", "all", "per", "via", "within", "these", "those", "there", "here",
+        "does", "did", "should", "would", "could", "about", "over", "under", "only", "both", "each",
+    }
+)
+
+
 def _query_tokens(query: str) -> tuple[str, ...]:
     """Split a query into the literal tokens used for span selection."""
 
     folded = query.casefold()
-    tokens = [token for token in (part for part in re.split(r"[^\w]+", folded) if len(part) >= 3)]
+    tokens = [
+        part
+        for part in re.split(r"[^\w]+", folded)
+        if len(part) >= 3 and part not in _EVIDENCE_STOPWORDS and not part.isdigit()
+    ]
     for run in re.findall(r"[\u4e00-\u9fff]{2,}", folded):
         tokens.append(run)
         tokens.extend(run[index : index + 2] for index in range(len(run) - 1))
     return tuple(dict.fromkeys(tokens))
 
 
-def _evidence_spans(text: str, tokens: Sequence[str]) -> tuple[tuple[int, int], ...]:
-    """Pick the literal window that covers the most distinct query tokens."""
+def _sentence_spans(text: str) -> tuple[tuple[int, int], ...]:
+    """Split one entry into trimmed sentence-sized literal spans."""
 
-    if not text:
-        return ()
-    haystack = text.casefold()
-    occurrences: list[tuple[int, str]] = []
-    for token in tokens:
-        start = 0
-        while True:
-            position = haystack.find(token, start)
-            if position < 0 or len(occurrences) > 1024:
-                break
-            occurrences.append((position, token))
-            start = position + 1
-    if not occurrences:
-        head = text[:200]
-        return ((0, len(head)),) if head else ()
+    spans: list[tuple[int, int]] = []
+    start = 0
+    for match in re.finditer(r"(?<=[.!?])\s+|\n+", text):
+        end = match.start()
+        if end > start and text[start:end].strip():
+            spans.append(_trim_span(text, start, end))
+        start = match.end()
+    if start < len(text) and text[start:].strip():
+        spans.append(_trim_span(text, start, len(text)))
+    return tuple(span for span in spans if span[1] > span[0])
 
-    best_score: tuple[int, int] | None = None
-    best_span = (0, min(len(text), 200))
-    for position, _token in occurrences:
-        start = max(0, position - 160)
-        end = min(len(text), position + 160)
-        covered = {token for other, token in occurrences if start <= other < end}
-        score = (len(covered), -start)
-        if best_score is None or score > best_score:
-            best_score = score
-            best_span = (start, end)
-    return (best_span,)
+
+def _trim_span(text: str, start: int, end: int) -> tuple[int, int]:
+    while start < end and text[start].isspace():
+        start += 1
+    while end > start and text[end - 1].isspace():
+        end -= 1
+    return start, end
+
+
+def _span_score(body: str, tokens: Sequence[str]) -> int:
+    """Rank a literal span by how many distinct query tokens it contains."""
+
+    folded = body.casefold()
+    matched = sum(1 for token in tokens if token in folded)
+    return matched * 1000 + min(len(body), 999)
 
 
 def _render_fragments(fragments: Sequence[PreparedEvidenceFragment]) -> str:
