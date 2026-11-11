@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import math
 from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -194,25 +195,46 @@ async def search_pdf_pages(memory, question: str, limit: int = 10) -> tuple[Memo
     for size in (2, 3, 4):
         if len(distinctive) >= size:
             queries.append(" ".join(distinctive[:size]))
+    # Single-term probes bypass the FTS admission threshold, which otherwise hides pages
+    # that only share one rare term with a long natural-language question.
+    queries.extend(distinctive[:12])
 
     seen_entries: dict[str, tuple[int, MemoryHit]] = {}
     order = 0
     for query in dict.fromkeys(queries):
-        page = await memory.search(SearchMemoryRequest(query=query, mode="fts", limit=min(100, limit * 5)))
+        page = await memory.search(SearchMemoryRequest(query=query, mode="fts", limit=min(40, max(20, limit))))
         for hit in page.hits:
             key = f"{hit.entry_id}:{hit.entry_version_id}"
             if key not in seen_entries:
                 seen_entries[key] = (order, hit)
                 order += 1
 
-    def coverage(hit: MemoryHit) -> int:
-        folded = hit.text.casefold()
-        return sum(1 for term in terms if term in folded)
-
-    ranked = sorted(seen_entries.values(), key=lambda item: (-coverage(item[1]), item[0]))
+    entries = list(seen_entries.values())
+    folded_hits = [hit.text.casefold() for _order, hit in entries]
+    total = len(entries) or 1
+    document_frequency = {term: sum(1 for folded in folded_hits if term in folded) for term in terms}
+    weights = {term: math.log((1 + total) / (1 + count)) + 1.0 for term, count in document_frequency.items()}
+    scored = [
+        (sum(weight for term, weight in weights.items() if term in folded_hits[index]), order, hit)
+        for index, (order, hit) in enumerate(entries)
+    ]
+    by_score = [hit for _score, _order, hit in sorted(scored, key=lambda item: (-item[0], item[1]))]
+    by_rank = [hit for _order, hit in entries]
+    merged: list[MemoryHit] = []
+    seen_hits: set[str] = set()
+    for index in range(max(len(by_score), len(by_rank))):
+        for hit in (by_score[index] if index < len(by_score) else None, by_rank[index] if index < len(by_rank) else None):
+            if hit is None:
+                continue
+            key = f"{hit.entry_id}:{hit.entry_version_id}"
+            if key in seen_hits:
+                continue
+            seen_hits.add(key)
+            merged.append(hit)
+    ranked = merged
     found: list[MemoryCitation] = []
     seen_pages: set[str] = set()
-    for _rank, hit in ranked:
+    for hit in ranked:
         citation = MemoryCitation(
             memory_ref=hit.memory_ref,
             entry_id=hit.entry_id,
