@@ -227,12 +227,12 @@ async def search_pdf_pages(memory, question: str, limit: int = 10) -> tuple[Memo
             queries.append(" ".join(distinctive[:size]))
     # Single-term probes bypass the FTS admission threshold, which otherwise hides pages
     # that only share one rare term with a long natural-language question.
-    queries.extend(distinctive[:12])
+    queries.extend(distinctive[:24])
 
     # FinanceBench questions use analyst shorthand while filings spell the line items out.
     # Expanding each shorthand into its filing vocabulary widens lexical recall without
     # depending on any particular document or answer.
-    for term in distinctive[:12]:
+    for term in distinctive[:24]:
         expansion = _FINANCE_EXPANSIONS.get(term.casefold())
         if expansion:
             queries.append(" ".join((term, *expansion)))
@@ -246,7 +246,7 @@ async def search_pdf_pages(memory, question: str, limit: int = 10) -> tuple[Memo
     first_seen: dict[str, int] = {}
     counter = 0
     for query in dict.fromkeys(queries):
-        page = await memory.search(SearchMemoryRequest(query=query, mode="fts", limit=min(80, max(20, limit))))
+        page = await memory.search(SearchMemoryRequest(query=query, mode="fts", limit=min(40, max(20, limit))))
         for rank, hit in enumerate(page.hits, start=1):
             key = f"{hit.entry_id}:{hit.entry_version_id}"
             if key not in pool:
