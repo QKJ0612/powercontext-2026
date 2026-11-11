@@ -166,6 +166,7 @@ from powercontext.builtin.runtime._scope_cache import (
     ScopeCacheObserver,
     ScopeEvictor,
 )
+from powercontext.builtin.runtime.source_lifecycle import SourceLifecycleApplication
 from powercontext.builtin.runtime.decision_model import DecisionModel
 from powercontext.builtin.runtime.errors import InvalidRuntimeRequestError, TopicMemoryProcessingUnavailableError
 from powercontext.builtin.runtime.models import (
@@ -2657,6 +2658,20 @@ class ScopedTopicMemoryApplication:
         if len(set(analyze_text(query).split())) > MAX_TOPIC_MEMORY_QUERY_TERMS:
             raise InvalidRuntimeRequestError("topic-memory-query-terms")
 
+        lifecycle = getattr(self._runtime, "lifecycle", None)
+        unavailable = (
+            frozenset()
+            if lifecycle is None
+            else await lifecycle.for_scope(self.scope_id).unavailable_topic_refs()
+        )
+        # A withdrawn Topic remains published and auditable; over-fetch so the
+        # requested page is still filled with supported Topics after filtering.
+        effective = (
+            request
+            if not unavailable
+            else request.model_copy(update={"limit": MAX_TOPIC_MEMORY_SEARCH_LIMIT})
+        )
+
         used_fallback = False
         async with self._runtime._scoped_operation(
             self.scope_id,
@@ -2670,20 +2685,30 @@ class ScopedTopicMemoryApplication:
                 result = await search(
                     self.scope_id,
                     query,
-                    limit=request.limit,
+                    limit=effective.limit,
                     mode="fts",
                     **_admission_keyword(admission),
                 )
                 result = result.model_copy(update={"embedding_calls": 0})
             else:
                 result, used_fallback = await self._search_with_embedding(
-                    request,
+                    effective,
                     embedding,
                     search,
                     admission,
                     query_embedding,
                     embedding_timeout_seconds,
                 )
+        if unavailable:
+            result = result.model_copy(
+                update={
+                    "hits": tuple(
+                        hit
+                        for hit in result.hits
+                        if (hit.artifact_ref.artifact_id, hit.artifact_ref.revision) not in unavailable
+                    )[: request.limit]
+                }
+            )
         observer = self._runtime._topic_memory_search_observer
         if observer is not None:
             try:
@@ -3044,6 +3069,7 @@ class BuiltinRuntime:
         remote_ingestion: RemoteIngestion | None = None,
         dream_service: DreamService | None = None,
         generation_concurrency: int = 4,
+        lifecycle_contexts: object | None = None,
     ) -> None:
         if source_window_limit < 1:
             raise _RuntimeConfigurationError("source_window_limit")
@@ -3052,6 +3078,7 @@ class BuiltinRuntime:
         if scope_cache_size < 1:
             raise _RuntimeConfigurationError("scope_cache_size")
         self._provider = provider
+        self._lifecycle_contexts = lifecycle_contexts
         self._capabilities = capabilities
         self._review_service = review_service
         self.profiles = profiles
@@ -3127,6 +3154,7 @@ class BuiltinRuntime:
         self.work = WorkApplication(self)
         self.memory = MemoryApplication(self)
         self.topic_memory = TopicMemoryApplication(self)
+        self.lifecycle = None if lifecycle_contexts is None else SourceLifecycleApplication(self)
         self.records = RecordApplication(self)
         self.prompts = PromptApplication(self)
         self.review = ReviewApplication(self)
