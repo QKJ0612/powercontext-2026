@@ -182,12 +182,18 @@ async def search_pdf_pages(memory, question: str, limit: int = 10) -> tuple[Memo
         return ()
 
     terms = analyze_fts_query(question).split()
+    unique = list(dict.fromkeys(terms))
     queries = [question]
-    if len(terms) > 3:
-        unique = list(dict.fromkeys(terms))
+    if len(unique) > 3:
         queries.append(" ".join(unique[:5]))
         stride = max(1, len(unique) // 5)
         queries.append(" ".join(unique[::stride][:5]))
+    # Long terms are usually the most selective; short queries relax the FTS admission
+    # threshold so the re-ranking below can still see the right pages.
+    distinctive = sorted(unique, key=len, reverse=True)
+    for size in (2, 3, 4):
+        if len(distinctive) >= size:
+            queries.append(" ".join(distinctive[:size]))
 
     seen_entries: dict[str, tuple[int, MemoryHit]] = {}
     order = 0
