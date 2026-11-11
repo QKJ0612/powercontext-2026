@@ -473,8 +473,8 @@ class PreparedContextBuilder:
         """Select query-relevant literal sentences instead of whole entries."""
 
         tokens = _query_tokens(request.query)
-        pool: list[tuple[int, int, int, MemoryEntryAddress, int, int, str]] = []
-        for group_index, candidates in enumerate(memory_candidates):
+        queues: list[tuple[MemoryEntryAddress, list[tuple[int, int, int, str]]]] = []
+        for candidates in memory_candidates:
             scope_id = candidates.scope_id or current_scope_id or ""
             for hit in candidates.hits:
                 if not hit.text.strip():
@@ -484,17 +484,32 @@ class PreparedContextBuilder:
                     entry_id=hit.entry_id,
                     entry_version_id=hit.entry_version_id,
                 )
-                for start, end in _sentence_spans(hit.text):
-                    body = hit.text[start:end]
-                    pool.append((_span_score(body, tokens), group_index, start, address, start, end, body))
+                scored = [
+                    (_span_score(hit.text[start:end], tokens), start, end, hit.text[start:end])
+                    for start, end in _sentence_spans(hit.text)
+                ]
+                scored.sort(key=lambda item: (-item[0], item[1]))
+                if scored:
+                    queues.append((address, scored))
 
-        pool.sort(key=lambda item: (-item[0], item[1], item[2]))
         fragments: list[PreparedEvidenceFragment] = []
-        for _score, _group, _start, address, start, end, body in pool:
-            fragment = PreparedEvidenceFragment(address=address, start=start, end=end, text=body)
-            if len(_render_fragments((*fragments, fragment)).encode("utf-8")) > request.max_bytes:
-                continue
-            fragments.append(fragment)
+        active = [True] * len(queues)
+        while True:
+            added = False
+            for index, (address, queue) in enumerate(queues):
+                if not active[index]:
+                    continue
+                while queue:
+                    _score, start, end, body = queue.pop(0)
+                    fragment = PreparedEvidenceFragment(address=address, start=start, end=end, text=body)
+                    if len(_render_fragments((*fragments, fragment)).encode("utf-8")) <= request.max_bytes:
+                        fragments.append(fragment)
+                        added = True
+                        break
+                if not queue:
+                    active[index] = False
+            if not added:
+                break
         if not fragments:
             return None, (), ()
         selected = tuple(fragments)
@@ -868,7 +883,6 @@ def _render_fragments(fragments: Sequence[PreparedEvidenceFragment]) -> str:
                 "content": fragment.text,
                 "start": fragment.start,
                 "end": fragment.end,
-                "truncated": False,
             }
             for fragment in fragments
         ],
