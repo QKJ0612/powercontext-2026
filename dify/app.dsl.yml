@@ -1,0 +1,307 @@
+app:
+  name: "记仇酒馆 The Grudge Tavern"
+  description: "一个会记住你干过什么的酒馆老板娘。关掉重开，她照样翻旧账。记忆由 PowerContext 持久化。"
+  icon: "🍺"
+  icon_type: emoji
+  icon_background: "#FFEAD5"
+  use_icon_as_answer_icon: false
+  mode: advanced-chat
+kind: app
+version: "0.7.0"
+dependencies: []
+
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      enabled: false
+      number_limits: 3
+      allowed_file_types: [image]
+      allowed_file_extensions: [".JPG", ".JPEG", ".PNG", ".WEBP", ".GIF"]
+      allowed_file_upload_methods: [local_file, remote_url]
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods: [local_file, remote_url]
+    opening_statement: "（酒馆的门吱呀一声推开，老板娘头也不抬）哟，又是你。上回那笔账，我记着呢。"
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ""
+      voice: ""
+
+  graph:
+    nodes:
+      - id: "start"
+        type: custom
+        position: {x: 0, y: 0}
+        data:
+          type: start
+          title: 开始
+          desc: ""
+          variables:
+            - variable: guest
+              label: 酒客代号
+              type: text-input
+              required: true
+              max_length: 64
+              options: []
+
+      - id: "http_scope"
+        type: custom
+        position: {x: 240, y: 0}
+        data:
+          type: http-request
+          title: 取酒客账本
+          desc: "按 guest 幂等创建/复用 scope"
+          method: post
+          url: "http://powercontext:8000/v1/scopes"
+          headers: "Content-Type: application/json"
+          params: ""
+          body:
+            type: json
+            data:
+              - key: ""
+                type: text
+                value: |
+                  {"title": "tavern-{{#start.guest#}}", "summary": "记仇酒馆的账本", "idempotency_key": "tavern-{{#start.guest#}}"}
+          authorization:
+            type: no-auth
+          timeout:
+            max_connect_timeout: 10
+            max_read_timeout: 30
+            max_write_timeout: 10
+          retry_config:
+            retry_enabled: true
+            max_retries: 2
+            retry_interval: 200
+          ssl_verify: true
+          variables: []
+
+      - id: "code_scope"
+        type: custom
+        position: {x: 460, y: 0}
+        data:
+          type: code
+          title: 解析 scope_id
+          desc: "HTTP 节点返回的 body 是字符串，这里解析成对象"
+          code_language: python3
+          code: |
+            import json
+
+            def main(body: str) -> dict:
+                try:
+                    data = json.loads(body) if body else {}
+                except Exception:
+                    data = {}
+                return {"scope_id": data.get("scope_id", "")}
+          outputs:
+            scope_id:
+              type: string
+              children: null
+          variables:
+            - variable: body
+              value_selector: ["http_scope", "body"]
+
+      - id: "http_prepare"
+        type: custom
+        position: {x: 680, y: 0}
+        data:
+          type: http-request
+          title: 翻账本
+          desc: "列出该酒客的全部账目（按台账语义，不做相关性检索）"
+          method: post
+          url: "http://powercontext:8000/v1/atomic-memory/list"
+          headers: "Content-Type: application/json"
+          params: ""
+          body:
+            type: json
+            data:
+              - key: ""
+                type: text
+                value: |
+                  {"scope_id": "{{#code_scope.scope_id#}}", "limit": 50, "states": ["active"]}
+          authorization:
+            type: no-auth
+          timeout:
+            max_connect_timeout: 10
+            max_read_timeout: 30
+            max_write_timeout: 10
+          retry_config:
+            retry_enabled: true
+            max_retries: 2
+            retry_interval: 200
+          ssl_verify: true
+          variables: []
+
+      - id: "code_context"
+        type: custom
+        position: {x: 900, y: 0}
+        data:
+          type: code
+          title: 整理账本
+          desc: "解析 prepare 响应，转成可安全嵌入 JSON 的字符串"
+          code_language: python3
+          code: |
+            import json
+
+            PERSONA = (
+                "你是「记仇酒馆」的老板娘阿蛮，开了三十年酒馆，记性极好，尤其记仇。\n\n"
+                "说话风格：粗声粗气、爱答不理，但骨子里护着常客；"
+                "每句话都带点旧账的味道，能翻就翻；用口语短句，别说教；三四句话就够，不要长篇大论。\n\n"
+                "下面是账本里翻出来的、关于这位酒客的历史记录（可能是空的）：\n"
+                "---\n"
+            )
+            RULES = (
+                "\n---\n\n规则（必须遵守）：\n"
+                "1. 你提到的每一件旧事都必须来自上面的账本，不许自己加细节、不许编造。\n"
+                "2. 如果账本里写着「账本上还没有这位酒客的记录」，说明这人你压根没见过："
+                "必须明确表示面生（例如「面生得很」「没见过你」），绝对不许假装记得他干过什么。\n"
+                "3. 账本里有相关旧账时，要主动翻出来，用「上回你」「那次你」的口吻提起。\n"
+                "4. 不许提到「数据库」「接口」「记忆」「上下文」这些词，你就是个开酒馆的。\n"
+                "5. 不要复述账本原文，要像人一样转述，三四句话就够。\n"
+                "6. 如果账本为空，你的回答里绝对不能出现「上回」「上次」「那次」「以前」这些词——"
+                "因为你们今天是头一回见面。"
+            )
+
+
+            def main(body: str) -> dict:
+                items = []
+                try:
+                    data = json.loads(body) if body else {}
+                    items = data.get("items") or []
+                except Exception:
+                    items = []
+                lines = []
+                for item in items:
+                    text = (item.get("text") or "").strip()
+                    if text:
+                        lines.append("- " + text)
+                content = "\n".join(lines) if lines else "（账本上还没有这位酒客的记录）"
+                system_prompt = PERSONA + content + RULES
+                return {"content_json": json.dumps(system_prompt, ensure_ascii=False)}
+          outputs:
+            content_json:
+              type: string
+              children: null
+          variables:
+            - variable: body
+              value_selector: ["http_prepare", "body"]
+
+      - id: "http_llm"
+        type: custom
+        position: {x: 1120, y: 0}
+        data:
+          type: http-request
+          title: 老板娘开口
+          desc: "调用 OpenAI 兼容的对话接口；把 url / key / model 换成你自己的即可"
+          method: post
+          url: "https://open.bigmodel.cn/api/paas/v4/chat/completions"
+          headers: "Content-Type: application/json\nAuthorization: Bearer __MODEL_API_KEY__"
+          params: ""
+          body:
+            type: json
+            data:
+              - key: ""
+                type: text
+                value: |
+                  {"model": "__MODEL_NAME__", "temperature": 0.85, "max_tokens": 400, "messages": [{"role": "system", "content": {{#code_context.content_json#}}}, {"role": "user", "content": {{#sys.query#}}}]}
+          authorization:
+            type: no-auth
+          timeout:
+            max_connect_timeout: 15
+            max_read_timeout: 120
+            max_write_timeout: 15
+          retry_config:
+            retry_enabled: true
+            max_retries: 2
+            retry_interval: 500
+          ssl_verify: true
+          variables: []
+
+      - id: "http_remember"
+        type: custom
+        position: {x: 1340, y: 0}
+        data:
+          type: http-request
+          title: 记一笔
+          desc: "把这一轮酒客说过的话写进账本"
+          method: post
+          url: "http://powercontext:8000/v1/memory/remember"
+          headers: "Content-Type: application/json"
+          params: ""
+          body:
+            type: json
+            data:
+              - key: ""
+                type: text
+                value: |
+                  {"scope_id": "{{#code_scope.scope_id#}}", "kind": "fact", "text": "{{#sys.query#}}", "reason": "酒馆账本"}
+          authorization:
+            type: no-auth
+          timeout:
+            max_connect_timeout: 10
+            max_read_timeout: 30
+            max_write_timeout: 10
+          retry_config:
+            retry_enabled: true
+            max_retries: 2
+            retry_interval: 200
+          ssl_verify: true
+          variables: []
+
+      - id: "code_answer"
+        type: custom
+        position: {x: 1560, y: 0}
+        data:
+          type: code
+          title: 取出回答
+          desc: "从模型响应里取出正文"
+          code_language: python3
+          code: |
+            import json
+
+            def main(body: str) -> dict:
+                text = ""
+                try:
+                    data = json.loads(body) if body else {}
+                    text = data["choices"][0]["message"]["content"]
+                except Exception:
+                    text = "（老板娘没吭声，大概是不想理你）"
+                return {"text": text}
+          outputs:
+            text:
+              type: string
+              children: null
+          variables:
+            - variable: body
+              value_selector: ["http_llm", "body"]
+
+      - id: "answer"
+        type: custom
+        position: {x: 1780, y: 0}
+        data:
+          type: answer
+          title: 直接回复
+          desc: ""
+          answer: "{{#code_answer.text#}}"
+          variables: []
+
+    edges:
+      - {id: "e1", source: "start", sourceHandle: "source", target: "http_scope", targetHandle: "target"}
+      - {id: "e2", source: "http_scope", sourceHandle: "source", target: "code_scope", targetHandle: "target"}
+      - {id: "e3", source: "code_scope", sourceHandle: "source", target: "http_prepare", targetHandle: "target"}
+      - {id: "e4", source: "http_prepare", sourceHandle: "source", target: "code_context", targetHandle: "target"}
+      - {id: "e5", source: "code_context", sourceHandle: "source", target: "http_llm", targetHandle: "target"}
+      - {id: "e6", source: "http_llm", sourceHandle: "source", target: "http_remember", targetHandle: "target"}
+      - {id: "e7", source: "http_remember", sourceHandle: "source", target: "code_answer", targetHandle: "target"}
+      - {id: "e8", source: "code_answer", sourceHandle: "source", target: "answer", targetHandle: "target"}

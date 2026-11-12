@@ -1,0 +1,27 @@
+# PowerContext 侧车镜像：给 Dify 的 HTTP Request 节点提供记忆能力
+# 与 Dify 放在同一个 docker compose 网络里，服务名 powercontext，端口 8000
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install "powercontext[cli,server]==1.5.1"
+
+ENV POWERCONTEXT_DATA_DIR=/data \
+    POWERCONTEXT_HOST=0.0.0.0 \
+    POWERCONTEXT_PORT=8000
+
+RUN mkdir -p /data
+VOLUME ["/data"]
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=5 \
+    CMD curl -fsS http://127.0.0.1:8000/health/live || exit 1
+
+CMD ["powercontext", "server", "run", "--host", "0.0.0.0", "--port", "8000"]

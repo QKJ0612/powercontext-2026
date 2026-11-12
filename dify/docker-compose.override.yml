@@ -1,0 +1,29 @@
+# 放在 Dify 官方 docker/ 目录下，与 docker-compose.yaml 一起使用：
+#   docker compose -f docker-compose.yaml -f docker-compose.override.yml up -d
+#
+# 作用：把 PowerContext 作为侧车服务挂进 Dify 自己的 compose 网络，
+# 这样 Chatflow 里的 HTTP Request 节点可以直接用 http://powercontext:8000 访问，
+# 不经过宿主机回环地址，规避 Dify 1.15+ 的 SSRF 私网/回环拦截。
+services:
+  powercontext:
+    build:
+      context: .
+      dockerfile: Dockerfile.powercontext
+    image: powercontext-tavern:1.5.1
+    container_name: powercontext
+    restart: unless-stopped
+    environment:
+      - POWERCONTEXT_HOST=0.0.0.0
+      - POWERCONTEXT_PORT=8000
+      # PowerContext 默认拒绝在无鉴权时绑定非回环地址；容器内网隔离，显式放开
+      - POWERCONTEXT_SERVER_ALLOW_UNAUTHENTICATED_NON_LOOPBACK=true
+    volumes:
+      - ./volumes/powercontext:/data
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
