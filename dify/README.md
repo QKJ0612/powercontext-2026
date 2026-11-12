@@ -65,6 +65,17 @@ SSRF_PROXY_ALLOW_PRIVATE_DOMAINS=powercontext,host.docker.internal
 
 改完重建 `ssrf_proxy` 容器。**注意：HTTP 节点里不要写 `127.0.0.1`**，那是 api 容器自己的回环。
 
+**3）Dify 1.19 的 local_sandbox 会无限重启（不影响本作品，但会占 CPU）**
+
+`local_sandbox` 与 `agent_backend` 需要 `SHELLCTL_AUTH_TOKEN`，而官方 `.env.example` 里这一项是空值，导致两个容器 `restarting` 不止。补一个随机值即可：
+
+```bash
+# docker/.env
+DIFY_AGENT_LOCAL_SANDBOX_AUTH_TOKEN=<随机字符串，例如 openssl rand -base64 32>
+```
+
+然后 `docker compose up -d local_sandbox agent_backend`。本作品用的是 `sandbox` 容器（状态一直 healthy），所以即使不修也能跑通。
+
 ## 四、从零复现
 
 ### 1. 起 Dify
