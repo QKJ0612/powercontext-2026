@@ -2,7 +2,7 @@
 
 > 平台：https://open.oceanbase.com/train/detail/21
 > 提交仓库：`QKJ0612/powercontext-2026` · 分支 **`2026-competition-ecosystem`**
-> 分支 HEAD：`ec6b9a37`（提测前请以实际 HEAD 为准）
+> 分支 HEAD：**`8d5851a`**（已推入 `dify/`、`qoder/`、`SUBMIT.md`）
 
 ---
 
