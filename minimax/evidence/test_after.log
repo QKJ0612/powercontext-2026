@@ -1,0 +1,4 @@
+$ /usr/bin/python3 -m pytest -q tests
+exit=0
+......                                                                   [100%]
+6 passed in 0.01s

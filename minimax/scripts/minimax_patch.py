@@ -66,13 +66,15 @@ def _ask_minimax(task: str, context: dict, before: str, model: str) -> tuple[str
         "max_tokens": 4096,
     }
     request = urllib.request.Request(
-        f"{API_HOST}/v1/text/chatcompletion_v2",
+        f"{API_HOST}/v1/chat/completions",
         data=json.dumps(payload).encode("utf-8"),
         headers={"Authorization": f"Bearer {_api_key()}", "Content-Type": "application/json"},
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=180) as response:
         body = json.loads(response.read().decode("utf-8"))
+    if isinstance(body.get("error"), dict):
+        raise SystemExit(f"MiniMax API error: {body['error']}")
     base = body.get("base_resp") or {}
     if base.get("status_code") not in (0, None):
         raise SystemExit(f"MiniMax API error: {base}")

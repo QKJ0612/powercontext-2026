@@ -15,11 +15,21 @@ class Order:
     created_at: str
 
 
-def find_orders(orders: Iterable[Order], *, status: str | None = None) -> list[Order]:
-    """Return orders matching an optional status filter, preserving input order."""
+def find_orders(
+    orders: Iterable[Order],
+    *,
+    status: str | None = None,
+    min_amount_cents: int | None = None,
+) -> list[Order]:
+    """Return orders matching optional status and minimum amount filters.
+
+    The minimum amount filter is inclusive, and input order is preserved.
+    """
     result = list(orders)
     if status is not None:
         result = [order for order in result if order.status == status]
+    if min_amount_cents is not None:
+        result = [order for order in result if order.amount_cents >= min_amount_cents]
     return result
 
 

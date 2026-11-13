@@ -1,0 +1,16 @@
+{
+  "request_model": "MiniMax-M3.1-Flash",
+  "usage": {
+    "total_tokens": 1759,
+    "total_characters": 0,
+    "prompt_tokens": 996,
+    "completion_tokens": 763,
+    "completion_tokens_details": {
+      "reasoning_tokens": 517
+    },
+    "prompt_tokens_details": {
+      "cached_tokens": 128
+    }
+  },
+  "raw_reply": "```python\n\"\"\"Order query helpers for the SDD demo project (before state).\"\"\"\n\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass\nfrom typing import Iterable\n\n\n@dataclass(frozen=True)\nclass Order:\n    order_id: str\n    customer: str\n    status: str\n    amount_cents: int\n    created_at: str\n\n\ndef find_orders(\n    orders: Iterable[Order],\n    *,\n    status: str | None = None,\n    min_amount_cents: int | None = None,\n) -> list[Order]:\n    \"\"\"Return orders matching optional status and minimum amount filters.\n\n    The minimum amount filter is inclusive, and input order is preserved.\n    \"\"\"\n    result = list(orders)\n    if status is not None:\n        result = [order for order in result if order.status == status]\n    if min_amount_cents is not None:\n        result = [order for order in result if order.amount_cents >= min_amount_cents]\n    return result\n\n\ndef total_amount(orders: Iterable[Order]) -> int:\n    \"\"\"Return the sum of order amounts in cents.\"\"\"\n    return sum(order.amount_cents for order in orders)\n```"
+}

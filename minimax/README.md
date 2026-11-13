@@ -24,11 +24,11 @@ minimax/
 
 ## 依赖
 
-- Python 3.12
-- `pymysql`（连接 seekdb）
+- Python 3.11+（本机 3.14 亦可）
+- `pymysql`（连接 seekdb，Ubuntu 上 `apt-get install python3-pymysql`）、`pytest`（`apt-get install python3-pytest`）
 - `powercontext`：使用比赛仓库的产品源码（`PYTHONPATH=<repo>/src`）或 `pip install powercontext==1.2.0`
 - seekdb：默认 `127.0.0.1:2881`，root 空密码
-- MiniMax API Key：环境变量 `MINIMAX_API_KEY`，或写入 `~/.minimax_key`（不要提交）
+- MiniMax API Key：环境变量 `MINIMAX_API_KEY`，或写入 `~/.minimax_key`（不要提交）。脚本调用 OpenAI 兼容端点 `/v1/chat/completions`，普通按量 key 与编程套餐 key（`sk-cp-` 前缀）都可用
 
 ## 运行步骤
 
@@ -77,7 +77,7 @@ python scripts/minimax_patch.py
   三个回归测试通过。
 - 改动后（MiniMax 产出）：目标测试与回归测试**全部通过**。
 
-`evidence/` 下会生成 `before_orders.py`、`after_orders.py`、`diff.patch`、
+`evidence/` 已随仓库提交（`git add -f`，因为 `.gitignore` 默认忽略运行产物）；重跑 `minimax_patch.py` 会覆盖同一批文件。`evidence/` 下会生成 `before_orders.py`、`after_orders.py`、`diff.patch`、
 `test_before.log`、`test_after.log`、`context.json`、`minimax_session.json`。
 
 ## 已知限制

@@ -1,0 +1,36 @@
+$ /usr/bin/python3 -m pytest -q tests
+exit=1
+FFF...                                                                   [100%]
+=================================== FAILURES ===================================
+________________________ test_filters_by_minimum_amount ________________________
+
+    def test_filters_by_minimum_amount() -> None:
+        """Target behaviour: keep orders whose amount is at least the minimum."""
+>       result = find_orders(ORDERS, min_amount_cents=5000)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: find_orders() got an unexpected keyword argument 'min_amount_cents'
+
+tests/test_orders.py:28: TypeError
+__________________ test_minimum_amount_is_inclusive_boundary ___________________
+
+    def test_minimum_amount_is_inclusive_boundary() -> None:
+        """Target behaviour: the boundary value itself is included."""
+>       result = find_orders(ORDERS, min_amount_cents=1200)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: find_orders() got an unexpected keyword argument 'min_amount_cents'
+
+tests/test_orders.py:34: TypeError
+___________________ test_combines_status_and_minimum_amount ____________________
+
+    def test_combines_status_and_minimum_amount() -> None:
+        """Target behaviour: both filters apply together."""
+>       result = find_orders(ORDERS, status="paid", min_amount_cents=5000)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: find_orders() got an unexpected keyword argument 'min_amount_cents'
+
+tests/test_orders.py:40: TypeError
+=========================== short test summary info ============================
+FAILED tests/test_orders.py::test_filters_by_minimum_amount - TypeError: find...
+FAILED tests/test_orders.py::test_minimum_amount_is_inclusive_boundary - Type...
+FAILED tests/test_orders.py::test_combines_status_and_minimum_amount - TypeEr...
+3 failed, 3 passed in 0.01s
