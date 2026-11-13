@@ -273,3 +273,85 @@ $('file').addEventListener('change', async (e) => {
   }
   await health();
 })();
+
+// ---------------- 一键基准：生成 N 篇合成语料，跑完整链路并输出中位数 ----------------
+const BENCH_VERBS = ['实现了', '优化了', '重构了', '修复了', '接入了', '验证了', '压测了', '上线了'];
+const BENCH_NOUNS = ['向量检索', '全文索引', '混合排序', '分词器', '索引刷新', '批量写入', '端侧推理', '量化流程', '缓存命中', '并发控制'];
+const BENCH_TAILS = ['后延迟下降 12%', '后吞吐提升 30%', '后发现一处边界缺陷', '后召回率保持不变', '后内存占用降低'];
+
+function makeBenchDocs(n) {
+  const verbs = BENCH_VERBS;
+  const nouns = BENCH_NOUNS;
+  const tails = BENCH_TAILS;
+  const out = [];
+  for (let i = 0; i < n; i += 1) {
+    out.push(`实验 ${i}：${verbs[i % verbs.length]}${nouns[(i * 3) % nouns.length]}与${nouns[(i * 7 + 1) % nouns.length]}的联动，${tails[(i * 5) % tails.length]}。`);
+  }
+  return out;
+}
+
+async function runBench() {
+  const N = 200;
+  const Q = 10;
+  const out = $('benchOut');
+  $('btnBench').disabled = true;
+  out.textContent = '基准运行中…';
+  try {
+    const docs = makeBenchDocs(N);
+    $('importStatus').textContent = `基准：向量化 ${N} 篇…`;
+    const { vectors, ms: embMs } = await embedBatch(docs, 8, () => {});
+
+    const payload = {
+      docs: docs.map((text, i) => ({ id: `b${hash53(text).toString(36)}`, text, vector: vectors[i], source: 'bench' })),
+    };
+    const tw = now();
+    const r = await fetch('/api/import', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload),
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error || '写入失败');
+    const writeMs = now() - tw;
+
+    const qEmb = []; const qSearch = []; const qE2E = [];
+    for (let i = 0; i < Q; i += 1) {
+      const q = `${BENCH_NOUNS[i % BENCH_NOUNS.length]} 在实验 ${(i * 37) % N} 里的表现`;
+      const t0 = now();
+      const [vec] = await extract(QUERY_PREFIX + q);
+      const t1 = now();
+      const sr = await fetch('/api/search', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ query: q, vector: vec, k: 5 }),
+      });
+      const sj = await sr.json();
+      const t2 = now();
+      if (sr.ok) { qEmb.push(t1 - t0); qSearch.push(sj.searchMs); qE2E.push(t2 - t0); }
+    }
+    const med = (a) => { const s = [...a].sort((x, y) => x - y); return s[Math.floor(s.length / 2)] ?? NaN; };
+
+    $('pDocs').textContent = fmt(embMs);
+    $('pDocsNote').textContent = `吞吐 ${(N / (embMs / 1000)).toFixed(1)} 段/秒 · 批大小 8`;
+    $('pWrite').textContent = fmt(writeMs);
+    $('pQEmb').textContent = fmt(med(qEmb));
+    $('pSearch').textContent = fmt(med(qSearch));
+    $('pE2E').textContent = fmt(med(qE2E));
+    await refreshCount();
+
+    const lines = [
+      `基准结果（${device.toUpperCase()} · ${DTYPE}）`,
+      `语料 ${N} 篇 · 批大小 8 · 查询 ${Q} 次（取中位数）`,
+      `文档向量化  ${fmt(embMs)}  → ${(N / (embMs / 1000)).toFixed(1)} 段/秒`,
+      `写入 seekdb ${fmt(writeMs)}`,
+      `查询向量化  ${fmt(med(qEmb))}`,
+      `seekdb 检索 ${fmt(med(qSearch))}`,
+      `端到端      ${fmt(med(qE2E))}`,
+    ].join('\n');
+    out.textContent = lines;
+    console.log(lines);
+    $('importStatus').textContent = `基准完成（${device.toUpperCase()}）`;
+  } catch (e) {
+    out.textContent = '基准失败：' + (e?.message || e);
+  } finally {
+    $('btnBench').disabled = false;
+  }
+}
+$('btnBench').addEventListener('click', runBench);
