@@ -51,7 +51,7 @@ bash scripts/fetch-fp32.sh   # 从 hf-mirror.com 拉取 onnx/model.onnx
 
 ```bash
 node server/server.mjs
-# [gmb] listening on http://0.0.0.0:3080  seekdb=127.0.0.1:2881  collection=kb_demo
+# [gmb] listening on http://0.0.0.0:3080  seekdb=127.0.0.1:2881  collection=kb_zh_512
 ```
 
 打开 <http://localhost:3080>。
@@ -69,7 +69,7 @@ node server/server.mjs
 | `SEEKDB_HOST` / `SEEKDB_PORT` | `127.0.0.1` / `2881` | seekdb 地址 |
 | `SEEKDB_USER` / `SEEKDB_PASSWORD` | `root` / 空 | 连接凭据 |
 | `SEEKDB_DATABASE` | `test` | 库名 |
-| `KB_COLLECTION` | `kb_demo` | 集合名（一个集合 = 一个知识库） |
+| `KB_COLLECTION` | `kb_zh_512` | 集合名（一个集合 = 一个知识库；名字带维度后缀便于换模型） |
 
 ## 四、接口
 
