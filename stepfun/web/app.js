@@ -79,11 +79,19 @@ async function loadModel() {
   $('badgeDevice').classList.toggle('warn', device !== 'webgpu');
   $('pLoad').textContent = fmt(bootMs);
 
-  // 预热一次，单独记录首次推理耗时
+  // 多长度预热：WebGPU 对每个新的输入长度都要重建 pipeline，
+  // 加载阶段把常见长度都跑一遍，避免用户第一次查询时被编译开销拖慢。
   const t1 = now();
   await extract('warmup');
   firstInferMs = now() - t1;
   $('pFirst').textContent = fmt(firstInferMs);
+  for (const s of [
+    '短句预热',
+    '中等长度的预热句子，用来固定住常见的序列长度。',
+    '这是一段更长的预热文本，覆盖查询与短文档两种长度的中间区间，减少运行时新建 pipeline 的次数。',
+  ]) {
+    try { await extract(s); } catch {}
+  }
 
   if (want === 'webgpu' && device === 'wasm') {
     $('importStatus').textContent = 'WebGPU 不可用，已自动降级到 WASM（功能不受影响，速度较慢）';
