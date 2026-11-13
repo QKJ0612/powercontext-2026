@@ -1,0 +1,112 @@
+:root {
+  --bg: #0f1115;
+  --card: #171a21;
+  --line: #262a33;
+  --fg: #e8ebf0;
+  --muted: #98a1b0;
+  --accent: #4f9dff;
+  --ok: #35c46f;
+  --warn: #f0b429;
+  --bad: #ef5350;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px/1.6 -apple-system, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+}
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  background: rgba(15, 17, 21, 0.92);
+  backdrop-filter: blur(6px);
+  z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand .sub { color: var(--muted); font-size: 13px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.dot.bad { background: var(--bad); }
+.badges { display: flex; gap: 8px; flex-wrap: wrap; }
+.badge {
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.badge.warn { color: var(--warn); border-color: rgba(240, 180, 41, 0.4); }
+.badge.error { color: var(--bad); border-color: rgba(239, 83, 80, 0.4); }
+
+main { max-width: 1080px; margin: 0 auto; padding: 18px 20px 60px; display: grid; gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.card h2 { margin: 0 0 6px; font-size: 16px; }
+.hint { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.hint b { color: var(--fg); }
+textarea, input[type="text"], input[type="number"] {
+  width: 100%;
+  background: #10131a;
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font: inherit;
+  outline: none;
+}
+textarea:focus, input:focus { border-color: var(--accent); }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.row input[type="text"] { flex: 1 1 320px; }
+label.k { color: var(--muted); font-size: 13px; display: flex; align-items: center; gap: 6px; }
+label.k input { width: 72px; }
+label.file {
+  font-size: 13px;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+label.file input { display: none; }
+button {
+  font: inherit;
+  padding: 9px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #10131a;
+  color: var(--fg);
+  cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #071018; font-weight: 600; }
+button.ghost { color: var(--muted); }
+button.danger:hover { border-color: var(--bad); color: var(--bad); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.progress { height: 4px; background: #10131a; border-radius: 999px; overflow: hidden; margin: 12px 0 6px; }
+.progress .bar { height: 100%; width: 0; background: var(--accent); transition: width 0.2s ease; }
+.status { color: var(--muted); font-size: 13px; }
+
+.results { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 10px; }
+.results li { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #10131a; }
+.results li.empty { color: var(--muted); justify-content: center; }
+.results .rank {
+  flex: 0 0 26px; height: 26px; border-radius: 50%;
+  background: rgba(79, 157, 255, 0.15); color: var(--accent);
+  display: grid; place-items: center; font-size: 13px; font-weight: 600;
+}
+.results .text { white-space: pre-wrap; }
+.results .meta { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+.perf { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+.perf th, .perf td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+.perf th { color: var(--muted); font-weight: 500; }
+.perf td:nth-child(2) { font-variant-numeric: tabular-nums; color: var(--accent); }
+.perf td:nth-child(3) { color: var(--muted); }

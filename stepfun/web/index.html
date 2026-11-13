@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>端侧知识库 · 浏览器本地向量化 + seekdb 混合检索</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="dot" id="dotBackend"></span>
+    <strong>端侧知识库</strong>
+    <span class="sub">浏览器本地 embedding · seekdb 混合检索</span>
+  </div>
+  <div class="badges">
+    <span class="badge" id="badgeDevice">设备：检测中</span>
+    <span class="badge" id="badgeDtype">精度：q8(INT8)</span>
+    <span class="badge" id="badgeModel">模型：bge-small-zh-v1.5</span>
+    <span class="badge" id="badgeDocs">库内：0 条</span>
+  </div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>① 导入语料</h2>
+    <p class="hint">文本会在<b>你的浏览器里</b>切分并向量化，只把「向量 + 原文」发给本地 seekdb。模型文件由本机提供，不联网。</p>
+    <textarea id="corpus" rows="7" placeholder="粘贴若干段落，每段一行或用空行分隔……"></textarea>
+    <div class="row">
+      <label class="file">选择 .txt 文件<input type="file" id="file" accept=".txt,text/plain" multiple /></label>
+      <button id="btnImport" class="primary">切分并导入</button>
+      <button id="btnDemo" class="ghost">载入示例语料</button>
+      <button id="btnReset" class="ghost danger">清空库</button>
+    </div>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="status" id="importStatus">待导入</div>
+  </section>
+
+  <section class="card">
+    <h2>② 混合检索</h2>
+    <p class="hint">查询向量同样在本地生成；<b>向量检索与全文检索都在 seekdb 内完成，并由 RRF 融合排序</b>。</p>
+    <div class="row">
+      <input id="query" type="text" placeholder="例如：向量数据库怎么做混合检索" />
+      <label class="k">TopK <input id="k" type="number" value="5" min="1" max="20" /></label>
+      <button id="btnSearch" class="primary">检索</button>
+    </div>
+    <ol id="results" class="results"><li class="empty">还没有结果</li></ol>
+  </section>
+
+  <section class="card">
+    <h2>③ 性能观测</h2>
+    <table class="perf">
+      <thead><tr><th>阶段</th><th>耗时</th><th>备注</th></tr></thead>
+      <tbody id="perfBody">
+        <tr><td>模型加载</td><td id="pLoad">-</td><td>首次加载（含下载/解析）</td></tr>
+        <tr><td>首次推理</td><td id="pFirst">-</td><td>预热</td></tr>
+        <tr><td>文档向量化</td><td id="pDocs">-</td><td id="pDocsNote">吞吐 -</td></tr>
+        <tr><td>写入 seekdb</td><td id="pWrite">-</td><td>含索引刷新</td></tr>
+        <tr><td>查询向量化</td><td id="pQEmb">-</td><td>单条</td></tr>
+        <tr><td>seekdb 混合检索</td><td id="pSearch">-</td><td>库内 RRF</td></tr>
+        <tr><td><b>端到端</b></td><td id="pE2E">-</td><td>点击「检索」到结果呈现</td></tr>
+      </tbody>
+    </table>
+    <p class="hint" id="envNote"></p>
+  </section>
+</main>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
