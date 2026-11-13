@@ -24,7 +24,7 @@ workflow:
         enabled: false
         number_limits: 3
         transfer_methods: [local_file, remote_url]
-    opening_statement: "（酒馆的门吱呀一声推开，老板娘头也不抬）哟，又是你。上回那笔账，我记着呢。"
+    opening_statement: "（酒馆的门吱呀一声推开，老板娘头也不抬）坐吧。要喝点什么，自己说。"
     retriever_resource:
       enabled: false
     sensitive_word_avoidance:
