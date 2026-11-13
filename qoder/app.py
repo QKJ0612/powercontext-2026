@@ -100,6 +100,12 @@ BLOCKER_HINTS = ("卡住", "卡了", "卡点", "卡壳", "跑不通", "起不来
 DONE_HINTS = ("跑完", "接完", "做完", "完成", "修好", "解决", "实现", "验证", "上线", "整理好",
               "读完", "接通", "调好", "配好", "部署", "补齐")
 
+# 截止式承诺。「周五前读完那三篇」含完成词「读完」却不含任何承诺词，实测被记成 progress，
+# 于是根本进不了承诺账本——第二段连「未核对」都轮不上，比 checks 那个 bug 更靠前。
+DEADLINE = re.compile(
+    r"周[一二三四五六日天末]前|星期[一二三四五六日天]前|下周前|本周前|这周前"
+    r"|明天前|后天前|月底(?:之)?前|本月前|下个?月前|\d{1,2}[号日]前")
+
 
 def hits_in(text: str, hints: tuple[str, ...]) -> list[str]:
     low = text.lower()
@@ -111,8 +117,12 @@ def classify(text: str) -> tuple[str, str]:
     d = hits_in(text, DECISION_HINTS)
     b = hits_in(text, BLOCKER_HINTS)
     f = hits_in(text, DONE_HINTS)
-    if d:
-        return "decision", f"承诺类词：{d}（完成类词 {f} 不压倒承诺）"
+    deadline = DEADLINE.search(text)
+    if d or deadline:
+        reasons = [f"承诺类词：{d}（完成类词 {f} 不压倒承诺）"] if d else []
+        if deadline:
+            reasons.append(f"截止「{deadline.group()}」" + (f"压倒完成类词 {f}" if f and not d else ""))
+        return "decision", "，".join(reasons)
     if b:
         return "blocker", f"卡点类词：{b}"
     if f:
@@ -419,19 +429,74 @@ COMMIT_INTENT = re.compile(
 REPORT_SECTIONS = ("本周进展", "上次承诺完成情况", "卡点", "下周计划")
 
 
+def commit_section(payload: dict) -> str:
+    """第二段的内容由代码决定，不信模型。实测过：prompt 里加粗写「绝对不允许写本段无记录」，
+    GLM-4-Flash 在 counts.pending=1 时仍然输出「- 本段无记录」。卖点不能压在这上面。"""
+    rows = [{"text": c["text"], "status": c["status"]} for c in payload["checks"]]
+    # checks 只覆盖部分承诺时，剩下没核对的仍以「未核对」列出——传参不全不能抹掉承诺
+    checked = {r["text"] for r in rows}
+    rows += [{"text": e["text"], "status": "未核对"}
+             for e in payload["pending"] if e["text"] not in checked]
+    if not rows:
+        return "本段无记录"
+    order = {"完成": 0, "部分完成": 1, "未完成": 2, "未核对": 3}
+    rows.sort(key=lambda r: order.get(r["status"], 9))
+    return "\n".join(f"- 「{t}」→ {s}"
+                     for t, s in dict.fromkeys((r["text"], r["status"]) for r in rows))
+
+
+SEC2_RE = re.compile(r"(##\s*上次承诺完成情况\s*\n)(.*?)(?=\n##\s|\Z)", re.S)
+
+
+def enforce_commit_section(draft: str, payload: dict) -> str:
+    """拿确定性生成的第二段覆盖模型写出来的第二段；模型漏写这一段就补在卡点前。"""
+    truth = commit_section(payload)
+    if SEC2_RE.search(draft):
+        return SEC2_RE.sub(lambda m: f"{m.group(1)}{truth}\n", draft, count=1)
+    insert = f"## 上次承诺完成情况\n{truth}\n\n"
+    for anchor in ("## 卡点", "## 下周计划"):
+        if anchor in draft:
+            return draft.replace(anchor, insert + anchor, 1)
+    return f"{draft.rstrip()}\n\n{insert.rstrip()}\n"
+
+
+SEC_TITLE_RE = re.compile(r"^\s*##\s*(.+?)\s*$", re.M)
+BULLET_RE = re.compile(r"^\s*(?:[-*•]|\d+\.)\s*")
+
+
+def bare_line(line: str) -> str:
+    """把 `- 「下周三前把 baseline…」→ 未核对` 这类行归约成可比对的承诺原文。"""
+    s = BULLET_RE.sub("", line.strip()).split("→")[0].strip()
+    return s.strip("「」").strip()
+
+
+def canonicalize_sections(draft: str, ledger: set[str]) -> tuple[str, list[dict]]:
+    """草稿必须恰好四个规范标题。模型偶尔自造第五节（实测「## 当前仍待兑现的承诺」），
+    评审按四段看完整性，多出来的标题显得结构失控。
+    删行不一定丢信息：第二段随后由 commit_section(payload) 整段重建，账本里的承诺必然在里面。
+    对不上账本的行记进 dropped_sections 返回，不静默吞掉。"""
+    marks = list(SEC_TITLE_RE.finditer(draft))
+    if not marks:
+        return draft, []
+    out = draft[:marks[0].start()]
+    dropped: list[dict] = []
+    for i, m in enumerate(marks):
+        end = marks[i + 1].start() if i + 1 < len(marks) else len(draft)
+        title, seg = m.group(1).strip(), draft[m.start():end]
+        if title in REPORT_SECTIONS:
+            out += seg
+            continue
+        lines = [ln for ln in draft[m.end():end].splitlines() if ln.strip()]
+        dropped.append({"title": title, "lines": len(lines),
+                        "unmatched": sum(1 for ln in lines if bare_line(ln) not in ledger)})
+    return out, dropped
+
+
 def render_template(payload: dict) -> str:
     """降级草稿：只用真实条目拼接，缺素材就写「本段无记录」，不放示例内容。"""
-    progress = "\n".join(f"- {e['date']} {e['text']}" for e in payload["week_progress"]) or "本周没有新的进展记录"
-    if payload["checks"]:
-        done = [c for c in payload["checks"] if c["status"] == "完成"]
-        rest = [c for c in payload["checks"] if c["status"] != "完成"]
-        lines = [f"- 「{c['text']}」→ {c['status']}" for c in done + rest]
-        commit = "\n".join(lines)
-    elif payload["pending"]:
-        commit = "\n".join(f"- 「{e['text']}」→ 未核对" for e in payload["pending"])
-    else:
-        commit = "本段无记录"
-    blockers = "\n".join(f"- {e['date']} {e['text']}" for e in payload["week_blockers"]) or "本段无记录"
+    progress = "\n".join(f"- {e['text']}" for e in payload["week_progress"]) or "本周没有新的进展记录"
+    commit = commit_section(payload)
+    blockers = "\n".join(f"- {e['text']}" for e in payload["week_blockers"]) or "本段无记录"
 
     hints = payload["undone"] + payload["week_blockers"] + payload["open_blockers"]
     plan = "\n".join(f"- 计划处理：{e['text']}" for e in hints[:4]) or "本段无记录"
@@ -445,10 +510,21 @@ def render_template(payload: dict) -> str:
 
 
 def build_prompt(payload: dict) -> str:
+    """条目一律以干净原文入 prompt。曾经用过 `- [日期] 原文` 的格式，模型会把方括号
+    日期整段复述进正文，所以这里不出现任何 [YYYY-MM-DD] 形状的东西。"""
     def dump(items: list[dict]) -> str:
-        return "\n".join(f"- [{e.get('date') or '无日期'}] {e['text']}" for e in items) or "（无）"
+        return "\n".join(f"· {e['text']}" for e in items) or "（无）"
 
-    checks = "\n".join(f"- 「{c['text']}」→ {c['status']}" for c in payload["checks"]) or "（本次没有核对记录）"
+    if payload["checks"]:
+        check_block = "\n".join(f"· 「{c['text']}」→ {c['status']}" for c in payload["checks"])
+        check_rule = "必须严格使用上面这份核对结果，逐条照抄状态，不得改写、不得补充推测。"
+    elif payload["pending"]:
+        check_block = "（本次没有提交任何核对结果）"
+        check_rule = ("本次没有核对结果，但存在尚未兑现的承诺：请把【当前仍待兑现的承诺】逐条列进第二段，"
+                      "每条后面标注「未核对」。**绝对不允许在这一段写「本段无记录」**——有待核对承诺却写无记录是错误。")
+    else:
+        check_block = "（本次没有提交核对结果，也没有待兑现的承诺）"
+        check_rule = "确实没有任何承诺记录时，本段只写「本段无记录」。"
 
     return f"""你是研究生组会汇报助手。下面是「组会搭子」记忆本里的真实条目，据此生成一份组会汇报草稿。
 
@@ -460,11 +536,12 @@ def build_prompt(payload: dict) -> str:
 
 规则：
 1. 只依据给定条目，禁止编造未出现的数字、实验、论文或结论。
-2. 「上次承诺完成情况」必须严格使用下面这份核对结果，不得改写状态、不得补充推测。
-3. 「下周计划」由未完成的承诺和卡点推导，最多 4 条，用「计划…」开头。
-4. 某段没有素材就只写「本段无记录」，不要凑字数。
-5. 日期前缀 [YYYY-MM-DD] 是元数据，不要出现在正文里。
-6. 用中文，简洁，每条不超过 40 字。
+2. 第二段{check_rule}
+3. 第三段用【本周卡点】，没有就写「本段无记录」。
+4. 「下周计划」由未完成的承诺和卡点推导，最多 4 条，用「计划…」开头。
+5. 除上述情况外，某段没有素材才写「本段无记录」，不要凑字数。
+6. 正文里不得出现方括号日期、条目编号或任何形如 [2026-11-13] 的元数据——原文已是干净文本，照抄即可。
+7. 用中文，简洁，每条不超过 40 字，每条以「- 」开头。
 
 【本周进展候选】
 {dump(payload["week_progress"])}
@@ -473,7 +550,7 @@ def build_prompt(payload: dict) -> str:
 {dump(payload["older_progress"])}
 
 【上次承诺核对结果】
-{checks}
+{check_block}
 
 【当前仍待兑现的承诺】
 {dump(payload["pending"])}
@@ -484,6 +561,15 @@ def build_prompt(payload: dict) -> str:
 【历史遗留卡点】
 {dump(payload["open_blockers"])}
 """
+
+
+DATE_IN_TEXT = re.compile(r"^(\s*(?:[-*]|\d+\.)\s*)?\[\d{4}-\d{2}-\d{2}\][ \t]*", re.MULTILINE)
+
+
+def strip_date_prefix(draft: str) -> str:
+    """兜底剥离：模型若仍复述 [YYYY-MM-DD] 前缀，在出口再清一次。保留原有项目符号。"""
+    cleaned = DATE_IN_TEXT.sub(lambda m: (m.group(1) or "- "), draft)
+    return cleaned.strip()
 
 
 # ---------------------------------------------------------------- 应用
@@ -617,11 +703,15 @@ async def report(body: ReportIn, request: Request):
     written: list[str] = []
     unknown: list[str] = []
     for c in body.checks:
-        if c.status not in CHECK_LABELS:
-            raise HTTPException(422, f"status 只能是 {list(CHECK_LABELS)}")
+        if c.status not in CHECK_LABELS and c.status != "unknown":
+            raise HTTPException(422, f"status 只能是 {list(CHECK_LABELS) + ['unknown']}")
         target = by_id.get(c.memory_id)
         if not target or target["kind"] != "decision":
             unknown.append(c.memory_id)
+            continue
+        if c.status == "unknown":
+            # 用户跳过核对：只进草稿列成「未核对」，不写回记忆——写回等于把没核对的事当成发生过
+            resolved.append({"text": target["text"], "status": "未核对", "checked": False})
             continue
         label = CHECK_LABELS[c.status]
         line = f"承诺「{target['text'][:20]}」→ {label}"
@@ -630,7 +720,7 @@ async def report(body: ReportIn, request: Request):
             written.append(line)
         except PcError as exc:
             raise pc_http_error(exc) from exc
-        resolved.append({"text": target["text"], "status": label})
+        resolved.append({"text": target["text"], "status": label, "checked": True})
 
     # 写回后重新读一次，保证草稿反映最新账本
     try:
@@ -638,9 +728,11 @@ async def report(body: ReportIn, request: Request):
     except PcError as exc:
         raise pc_http_error(exc) from exc
 
-    # 重新归拢销账表：本次刚勾选的结果也要算进去
+    # 重新归拢销账表：本次真正核对过的结果也要算进去，未核对的不改销账状态
     checks_map = parse_check_lines(entries)
     for r in resolved:
+        if not r.get("checked"):
+            continue
         prior = checks_map.get(r["text"][:20])
         if not prior or prior["status"] != r["status"]:
             checks_map[r["text"][:20]] = {"status": r["status"], "date": today().isoformat()}
@@ -667,14 +759,23 @@ async def report(body: ReportIn, request: Request):
     }
 
     draft, reason = await call_model(client, build_prompt(payload))
+    model_status = "model" if draft else "template"
+    draft = strip_date_prefix(draft or render_template(payload))
+    ledger = {e["text"] for e in payload["pending"]} | {c["text"] for c in payload["checks"]}
+    draft, dropped_sections = canonicalize_sections(draft, ledger)
+    draft = enforce_commit_section(draft, payload)
     return {
-        "draft": draft or render_template(payload),
-        "model_status": "model" if draft else "template",
+        "draft": draft,
+        "model_status": model_status,
         "reason": reason,
         "sections": list(REPORT_SECTIONS),
         "counts": {k: len(payload[k]) for k in
                    ("week_progress", "week_blockers", "pending", "open_blockers")},
+        "commit_section_from": "checks" if payload["checks"] else (
+            "pending" if payload["pending"] else "none"),
         "written_back": written,
+        "skipped_checks": sum(1 for r in resolved if not r.get("checked")),
+        "dropped_sections": dropped_sections,
         "unknown_memory_ids": unknown,
     }
 

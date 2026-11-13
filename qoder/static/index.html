@@ -393,8 +393,10 @@ $("checkGo").addEventListener("click", () => {
   generate(checks);
 });
 $("checkSkip").addEventListener("click", () => {
+  // 跳过不等于没有承诺：把待核对项以 unknown 传给后端，第二段仍会列出并标「未核对」
+  const checks = pendingChecks.map((it) => ({memory_id: it.memory_id, status: "unknown"}));
   $("checkDlg").close();
-  generate([]);
+  generate(checks);
 });
 
 function generate(checks) {
@@ -420,6 +422,8 @@ function generate(checks) {
     }
     if (res.unknown_memory_ids && res.unknown_memory_ids.length) {
       hint.textContent = `已生成。有 ${res.unknown_memory_ids.length} 条核对没对上记忆，已跳过。`;
+    } else if (res.skipped_checks) {
+      hint.textContent = `已生成。${res.skipped_checks} 条承诺标为未核对（没有写回记忆）。`;
     } else {
       hint.textContent = "已生成。";
     }
