@@ -120,11 +120,25 @@ function splitCorpus(raw) {
     .filter((s) => s.length >= 8);
 }
 
+// 内容哈希 → 稳定 id。配合后端 upsert，同一段文本重复导入只会覆盖，不会产生重复条目。
+function hash53(str) {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i += 1) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
 const DEMO = `seekdb 是面向 AI 应用的数据库，同时支持向量检索和全文检索。
 混合检索把向量相似度和关键词命中放进同一次查询，用 RRF 融合两路排序。
 RRF 即倒数排名融合，不需要把两路分数归一化，只看各自的名次。
 全文检索依赖分词器，中文常用 ik 分词，能识别"检索""数据库"这类词。
-向量检索依赖 embedding 模型，all-MiniLM-L6-v2 输出 384 维向量。
+向量检索依赖 embedding 模型，bge-small-zh 输出 512 维向量。
 端侧推理指模型在用户浏览器里运行，文档和查询都不离开设备。
 WebGPU 能显著加速矩阵运算，浏览器不支持时回退到 WASM。
 INT8 量化把权重从 32 位浮点压到 8 位整数，体积约为原来的四分之一。
@@ -155,7 +169,7 @@ async function doImport() {
     $('bar').style.width = '70%';
     const payload = {
       docs: docs.map((text, i) => ({
-        id: `d${Date.now()}_${i}`,
+        id: `d${hash53(text).toString(36)}`,
         text,
         vector: vectors[i],
         source: 'user',

@@ -168,7 +168,8 @@ const server = http.createServer(async (req, res) => {
       }
       collection = collection || (await ensureCollection());
       const t0 = performance.now();
-      await collection.add({
+      // upsert + 内容哈希 id：同一段文本重复导入只会覆盖，不会产生重复条目
+      await collection.upsert({
         ids: docs.map((d) => String(d.id)),
         documents: docs.map((d) => d.text),
         embeddings: docs.map((d) => d.vector),
