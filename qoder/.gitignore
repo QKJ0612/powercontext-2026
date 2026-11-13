@@ -1,0 +1,8 @@
+# 运行时产物，不要提交
+.env
+.venv/
+__pycache__/
+*.pyc
+run.log
+run.err
+*.log

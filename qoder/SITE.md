@@ -51,7 +51,7 @@ https://github.com/QKJ0612/powercontext-2026/tree/2026-competition-ecosystem/qod
 
 ## 使用方式
 
-见仓库内 `qoder/README.md`。三步：起 PowerContext → 配 `.env` → `uvicorn app:app`。
+见仓库内 `qoder/README.md`。三步：起 PowerContext（8000）→ 配 `.env` → `python app.py`（默认监听 8080）。
 
 ## 开发方式
 

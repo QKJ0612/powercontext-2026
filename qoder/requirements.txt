@@ -1,0 +1,6 @@
+# 本作品只声明三个直接依赖，版本号为本次实际安装成功的版本。
+# uvicorn 不带 [standard]：app.py 不用 --reload，装 httptools/watchfiles/websockets
+# 只会多出不必要的传递依赖。
+fastapi==0.162.5
+uvicorn==0.54.0
+httpx==0.28.1

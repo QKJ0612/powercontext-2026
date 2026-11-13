@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>组会搭子</title>
+<style>
+  :root{
+    --bg:#12141a; --panel:#1a1d25; --panel2:#21252f; --line:#2c313d;
+    --fg:#e6e9ef; --dim:#8b94a7; --accent:#5b9dff;
+    --progress:#3fa66b; --decision:#d9a13b; --blocker:#e0605f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:15px/1.6 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+  header{padding:22px 28px 14px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:20px;letter-spacing:.5px}
+  h1 span{color:var(--dim);font-size:13px;font-weight:400;margin-left:10px}
+  #status{margin-top:6px;font-size:12px;color:var(--dim)}
+  #status b{color:var(--fg);font-weight:600}
+  .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:1px}
+  .ok{background:var(--progress)} .bad{background:var(--blocker)} .warn{background:var(--decision)}
+  main{display:grid;grid-template-columns:minmax(380px,1fr) minmax(420px,1.15fr);
+    gap:18px;padding:20px 28px 60px;align-items:start}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:16px}
+  .card h2{margin:0 0 12px;font-size:14px;font-weight:600;color:var(--dim);
+    text-transform:none;letter-spacing:.6px}
+  textarea{width:100%;min-height:62px;resize:vertical;background:var(--panel2);
+    border:1px solid var(--line);border-radius:8px;color:var(--fg);padding:10px 12px;font:inherit}
+  textarea:focus,input:focus{outline:none;border-color:var(--accent)}
+  input[type=text]{width:100%;background:var(--panel2);border:1px solid var(--line);
+    border-radius:8px;color:var(--fg);padding:9px 12px;font:inherit}
+  .row{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{background:var(--panel2);color:var(--dim);border:0;padding:6px 11px;font:inherit;
+    font-size:13px;cursor:pointer;border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:0}
+  .seg button.on{background:var(--accent);color:#fff}
+  button.act{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:8px 16px;
+    font:inherit;font-size:14px;cursor:pointer}
+  button.act:disabled{opacity:.45;cursor:not-allowed}
+  button.ghost{background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+    border-radius:8px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer}
+  .hint{font-size:12px;color:var(--dim);margin-top:8px;min-height:16px}
+  .hint.err{color:var(--blocker)}
+  ul.feed{list-style:none;margin:0;padding:0;max-height:420px;overflow:auto}
+  ul.feed li{padding:9px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start}
+  ul.feed li:last-child{border-bottom:0}
+  .tag{flex:none;font-size:11px;padding:2px 7px;border-radius:20px;border:1px solid currentColor;
+    line-height:1.5;margin-top:2px}
+  .t-progress{color:var(--progress)} .t-decision{color:var(--decision)} .t-blocker{color:var(--blocker)}
+  .t-check{color:var(--accent)}
+  .txt{flex:1;word-break:break-word}
+  .date{color:var(--dim);font-size:12px;flex:none;margin-top:2px}
+  .empty{color:var(--dim);font-size:13px;padding:14px 0;text-align:center}
+  #draft{white-space:pre-wrap;background:var(--panel2);border:1px solid var(--line);
+    border-radius:8px;padding:14px 16px;font:inherit;font-size:14px;min-height:180px;display:none}
+  #draft.show{display:block}
+  .banner{display:none;background:rgba(217,161,59,.12);border:1px solid var(--decision);
+    border-radius:8px;padding:9px 12px;font-size:13px;color:#f0cf94;margin-bottom:10px}
+  .banner.show{display:block}
+  .recall li .score{font-size:11px;color:var(--dim);flex:none}
+  dialog{background:var(--panel);color:var(--fg);border:1px solid var(--line);border-radius:12px;
+    padding:0;width:min(560px,92vw)}
+  dialog::backdrop{background:rgba(0,0,0,.6)}
+  .dlg-h{padding:16px 20px;border-bottom:1px solid var(--line);font-weight:600}
+  .dlg-b{padding:8px 20px;max-height:52vh;overflow:auto}
+  .dlg-f{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .chk{padding:12px 0;border-bottom:1px solid var(--line)}
+  .chk:last-child{border-bottom:0}
+  .chk p{margin:0 0 8px;font-size:14px}
+  .chk .date{display:block;margin-bottom:4px}
+  progress-mini{font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+<header>
+  <h1>组会搭子 <span>记进展 · 生成汇报 · 翻旧账</span></h1>
+  <div id="status">正在检查后端与记忆服务…</div>
+</header>
+
+<main>
+  <!-- 左：记 + 账本 -->
+  <section>
+    <div class="card">
+      <h2>记一条</h2>
+      <textarea id="logText" placeholder="一句话就好。例：今天把检索重排接完了，但 recall 掉了 2 个点"></textarea>
+      <div class="row">
+        <div class="seg" id="kindSeg">
+          <button data-k="" class="on">自动判断</button>
+          <button data-k="progress">进展</button>
+          <button data-k="decision">承诺</button>
+          <button data-k="blocker">卡点</button>
+        </div>
+        <button class="act" id="logBtn">存下来</button>
+      </div>
+      <div class="hint" id="logHint"></div>
+    </div>
+
+    <div class="card">
+      <h2>记忆本</h2>
+      <ul class="feed" id="feed"><li class="empty">加载中…</li></ul>
+    </div>
+  </section>
+
+  <!-- 右：翻旧账 + 生成 -->
+  <section>
+    <div class="card">
+      <h2>翻旧账</h2>
+      <input type="text" id="askText" placeholder="上次说好要做的做完了吗">
+      <div class="row">
+        <button class="act" id="askBtn">查</button>
+        <span class="hint" id="askHint" style="margin:0"></span>
+      </div>
+      <ul class="feed recall" id="recall"><li class="empty">提问后显示相关的承诺与核对结果。</li></ul>
+    </div>
+
+    <div class="card">
+      <h2>组会汇报</h2>
+      <div class="row" style="margin-top:0">
+        <button class="act" id="genBtn">生成组会汇报</button>
+        <button class="ghost" id="copyBtn" style="display:none">复制全文</button>
+        <span class="hint" id="genHint" style="margin:0"></span>
+      </div>
+      <div class="banner" id="banner" style="margin-top:12px"></div>
+      <div id="draft"></div>
+    </div>
+  </section>
+</main>
+
+<dialog id="checkDlg">
+  <div class="dlg-h">先核对上次的承诺</div>
+  <div class="dlg-b" id="checkList"></div>
+  <div class="dlg-f">
+    <progress-mini id="checkProg"></progress-mini>
+    <div style="display:flex;gap:8px">
+      <button class="ghost" id="checkSkip">跳过，直接生成</button>
+      <button class="act" id="checkGo" disabled>确认，生成</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+const KIND_LABEL = {progress:"进展", decision:"承诺", blocker:"卡点"};
+const $ = (id) => document.getElementById(id);
+const API = (path, opts) => fetch(path, opts).then(async (r) => {
+  const text = await r.text();
+  let data; try { data = JSON.parse(text); } catch { data = {detail: text}; }
+  if (!r.ok) {
+    const d = data && data.detail;
+    throw new Error(typeof d === "string" ? d : JSON.stringify(d || data).slice(0, 200));
+  }
+  return data;
+});
+
+/* ---------- 顶部状态 ---------- */
+function chip(cls, label) {
+  const s = document.createElement("span");
+  const dot = document.createElement("span");
+  dot.className = "dot " + cls;
+  s.append(dot, document.createTextNode(label + " "));
+  return s;
+}
+function renderStatus(h) {
+  const el = $("status");
+  el.textContent = "";
+  el.append(chip(h.powercontext_ok ? "ok" : "bad", "PowerContext"));
+  el.append(chip(h.scope_ok ? "ok" : "bad", "记忆本"));
+  const b = document.createElement("b");
+  b.textContent = h.model_ready ? ("模型：" + (h.model_name || "已配置")) : "模型：未配置（草稿走模板拼装）";
+  el.append(chip(h.model_ready ? "ok" : "warn", ""), b);
+}
+API("/api/health").then(renderStatus).catch(() => {
+  $("status").textContent = "后端没起来，先运行 python app.py";
+});
+
+/* ---------- 记忆本 ---------- */
+function feedItem(e) {
+  const li = document.createElement("li");
+  const tag = document.createElement("span");
+  const isCheck = e.text.startsWith("承诺「");
+  tag.className = "tag " + (isCheck ? "t-check" : "t-" + e.kind);
+  tag.textContent = isCheck ? "核对" : (KIND_LABEL[e.kind] || e.kind);
+  const txt = document.createElement("span");
+  txt.className = "txt";
+  txt.textContent = e.text;
+  li.append(tag, txt);
+  if (e.date) {
+    const d = document.createElement("span");
+    d.className = "date";
+    d.textContent = e.date;
+    li.append(d);
+  }
+  return li;
+}
+async function loadFeed() {
+  const ul = $("feed");
+  try {
+    const {items} = await API("/api/recent?limit=40");
+    ul.textContent = "";
+    if (!items.length) {
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "还没记过东西。左边写第一句吧。";
+      ul.append(li);
+      return;
+    }
+    items.forEach((e) => ul.append(feedItem(e)));
+  } catch (err) {
+    ul.textContent = "";
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "读记忆失败：" + err.message;
+    ul.append(li);
+  }
+}
+
+/* ---------- 记一条 ---------- */
+let chosenKind = "";
+$("kindSeg").addEventListener("click", (ev) => {
+  const btn = ev.target.closest("button");
+  if (!btn) return;
+  chosenKind = btn.dataset.k;
+  [...$("kindSeg").children].forEach((b) => b.classList.toggle("on", b === btn));
+});
+
+$("logBtn").addEventListener("click", async () => {
+  const text = $("logText").value.trim();
+  const hint = $("logHint");
+  hint.className = "hint";
+  if (!text) { hint.textContent = "先写点什么。"; return; }
+  $("logBtn").disabled = true;
+  hint.textContent = "存盘中…";
+  try {
+    const res = await API("/api/log", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({text, kind: chosenKind || null}),
+    });
+    hint.className = "hint";
+    hint.textContent = `已记为「${KIND_LABEL[res.kind]}」`
+      + (res.deduplicated ? "（这条和之前一模一样，没新增）" : "")
+      + ` · ${res.why}`;
+    $("logText").value = "";
+    loadFeed();
+  } catch (err) {
+    hint.className = "hint err";
+    hint.textContent = "存失败：" + err.message;
+  } finally {
+    $("logBtn").disabled = false;
+  }
+});
+$("logText").addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter" && (ev.ctrlKey || ev.metaKey)) $("logBtn").click();
+});
+
+/* ---------- 翻旧账 ---------- */
+function recallItem(e) {
+  const li = document.createElement("li");
+  const tag = document.createElement("span");
+  const isCheck = e.text.startsWith("承诺「");
+  tag.className = "tag " + (isCheck ? "t-check" : "t-" + e.kind);
+  tag.textContent = isCheck ? "核对" : (KIND_LABEL[e.kind] || e.kind);
+  const txt = document.createElement("span");
+  txt.className = "txt";
+  txt.textContent = e.text;
+  if (e.last_check) {
+    const s = document.createElement("small");
+    s.style.cssText = "display:block;color:var(--dim);font-size:12px";
+    s.textContent = "上次核对：" + e.last_check + (e.last_check_date ? "（" + e.last_check_date + "）" : "");
+    txt.append(s);
+  }
+  const meta = document.createElement("span");
+  meta.className = "score";
+  meta.textContent = [e.date, e.hit_terms ? e.hit_terms + "词命中" : null]
+    .filter(Boolean).join(" · ");
+  li.append(tag, txt, meta);
+  return li;
+}
+$("askBtn").addEventListener("click", async () => {
+  const q = $("askText").value.trim();
+  const ul = $("recall"), hint = $("askHint");
+  hint.className = "hint";
+  if (!q) { hint.textContent = "先个问题。"; return; }
+  hint.textContent = "查记忆中…";
+  try {
+    const res = await API("/api/recall", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({question: q}),
+    });
+    ul.textContent = "";
+    hint.className = "hint";
+    const n = res.items.length;
+    const terms = (res.terms || []).slice(0, 5).join("、") || "（无实义词）";
+    hint.textContent = res.source === "search" ? `检索命中 ${n} 条 · 拆词：${terms}`
+      : res.source === "local" ? `整句检索没命中，短词本地匹配到 ${n} 条 · ${terms}`
+      : `这是个承诺类问题，直接给你承诺账本（${n} 条）`;
+    if (!res.items.length) {
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "记忆本里没找到相关的承诺。要不要先记一条？";
+      ul.append(li);
+      return;
+    }
+    res.items.forEach((e) => ul.append(recallItem(e)));
+  } catch (err) {
+    hint.className = "hint err";
+    hint.textContent = "查失败：" + err.message;
+  }
+});
+$("askText").addEventListener("keydown", (ev) => {
+  if (ev.key === "Enter") $("askBtn").click();
+});
+
+/* ---------- 生成：先核对，再出稿 ---------- */
+let pendingChecks = [];
+
+$("genBtn").addEventListener("click", async () => {
+  const hint = $("genHint");
+  hint.className = "hint";
+  $("genBtn").disabled = true;
+  hint.textContent = "取上次承诺…";
+  try {
+    const {items} = await API("/api/pending");
+    pendingChecks = items;
+    if (!items.length) {
+      hint.textContent = "没有待核对的承诺，直接生成。";
+      return generate([]);
+    }
+    openCheckDialog(items);
+    hint.textContent = `有 ${items.length} 条承诺等你核对。`;
+  } catch (err) {
+    hint.className = "hint err";
+    hint.textContent = "失败：" + err.message;
+  } finally {
+    $("genBtn").disabled = false;
+  }
+});
+
+const ANSWERS = [["done", "完成"], ["partial", "部分完成"], ["undone", "未完成"]];
+
+function openCheckDialog(items) {
+  const box = $("checkList");
+  box.textContent = "";
+  items.forEach((it) => {
+    const wrap = document.createElement("div");
+    wrap.className = "chk";
+    wrap.dataset.mid = it.memory_id;
+    if (it.date) {
+      const d = document.createElement("span");
+      d.className = "date";
+      d.textContent = it.date;
+      wrap.append(d);
+    }
+    const p = document.createElement("p");
+    p.textContent = it.text;
+    wrap.append(p);
+    const seg = document.createElement("div");
+    seg.className = "seg";
+    ANSWERS.forEach(([k, label]) => {
+      const b = document.createElement("button");
+      b.textContent = label;
+      b.dataset.v = k;
+      b.addEventListener("click", () => {
+        [...seg.children].forEach((x) => x.classList.remove("on"));
+        b.classList.add("on");
+        wrap.dataset.answer = k;
+        updateDialogFoot();
+      });
+      seg.append(b);
+    });
+    wrap.append(seg);
+    box.append(wrap);
+  });
+  updateDialogFoot();
+  $("checkDlg").showModal();
+}
+
+function updateDialogFoot() {
+  const all = [...$("checkList").children];
+  const done = all.filter((c) => c.dataset.answer).length;
+  $("checkProg").textContent = `已核对 ${done} / ${all.length}`;
+  $("checkGo").disabled = all.length === 0 || done < all.length;
+}
+
+$("checkGo").addEventListener("click", () => {
+  const checks = [...$("checkList").children]
+    .filter((c) => c.dataset.answer)
+    .map((c) => ({memory_id: c.dataset.mid, status: c.dataset.answer}));
+  $("checkDlg").close();
+  generate(checks);
+});
+$("checkSkip").addEventListener("click", () => {
+  $("checkDlg").close();
+  generate([]);
+});
+
+function generate(checks) {
+  const hint = $("genHint");
+  hint.className = "hint";
+  hint.textContent = checks.length ? "写回核对结果并生成中…" : "生成中…";
+  $("genBtn").disabled = true;
+  API("/api/report", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({checks}),
+  }).then((res) => {
+    const d = $("draft");
+    d.textContent = res.draft;
+    d.classList.add("show");
+    const banner = $("banner");
+    if (res.model_status === "template") {
+      banner.textContent = "当前未接入模型，以下草稿由模板拼装，内容取自你的记忆。（"
+        + (res.reason || "未知原因") + "）";
+      banner.classList.add("show");
+    } else {
+      banner.classList.remove("show");
+    }
+    if (res.unknown_memory_ids && res.unknown_memory_ids.length) {
+      hint.textContent = `已生成。有 ${res.unknown_memory_ids.length} 条核对没对上记忆，已跳过。`;
+    } else {
+      hint.textContent = "已生成。";
+    }
+    $("copyBtn").style.display = "inline-block";
+    loadFeed();
+  }).catch((err) => {
+    hint.className = "hint err";
+    hint.textContent = "生成失败：" + err.message;
+  }).finally(() => {
+    $("genBtn").disabled = false;
+  });
+}
+
+$("copyBtn").addEventListener("click", () => {
+  navigator.clipboard.writeText($("draft").textContent)
+    .then(() => $("genHint").textContent = "已复制到剪贴板。")
+    .catch(() => $("genHint").textContent = "浏览器不让复制，手动选吧。");
+});
+
+loadFeed();
+</script>
+</body>
+</html>
