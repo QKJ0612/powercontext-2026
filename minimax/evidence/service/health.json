@@ -1,0 +1,8 @@
+{
+  "ok": true,
+  "service": "sdd-context-service",
+  "seekdb": "127.0.0.1:2881/test",
+  "documents": 4,
+  "state_db": "/home/zhuxuanyu/pc-ecosystem/minimax/.sdd/state.db",
+  "retrieval": "bm25"
+}

@@ -1,0 +1,43 @@
+{
+  "ok": true,
+  "state_db": "/home/zhuxuanyu/pc-ecosystem/minimax/.sdd/state.db",
+  "checks": [
+    {
+      "name": "record pending in process 1",
+      "ok": true,
+      "detail": {
+        "pid": 1913,
+        "exit": 0
+      }
+    },
+    {
+      "name": "restart: a new process sees the pending record",
+      "ok": true,
+      "detail": {
+        "pid": 1931,
+        "pending": [
+          "state-reuse-demo pending"
+        ]
+      }
+    },
+    {
+      "name": "record completed in process 3",
+      "ok": true,
+      "detail": {
+        "pid": 1948,
+        "exit": 0
+      }
+    },
+    {
+      "name": "restart: a new process sees the completed record",
+      "ok": true,
+      "detail": {
+        "pid": 1973,
+        "completed": [
+          "state-reuse-demo completed"
+        ]
+      }
+    }
+  ],
+  "note": "Each line with 'powercontext' in stderr is emitted by context_module.state_store."
+}

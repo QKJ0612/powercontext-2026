@@ -7,6 +7,10 @@ from dataclasses import dataclass
 
 import pymysql
 
+from context_module.env import defaults as _db_defaults
+
+_DB = _db_defaults()
+
 _TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]{2,}|[\u4e00-\u9fff]+")
 
 SCHEMA = """
@@ -49,21 +53,21 @@ class DocStore:
     def __init__(
         self,
         *,
-        host: str = "127.0.0.1",
-        port: int = 2881,
-        user: str = "root",
-        password: str = "",
-        database: str = "sdd_context",
+        host: str | None = None,
+        port: int | None = None,
+        user: str | None = None,
+        password: str | None = None,
+        database: str | None = None,
     ) -> None:
         self._connect_kwargs = {
-            "host": host,
-            "port": port,
-            "user": user,
-            "password": password,
+            "host": host or str(_DB["host"]),
+            "port": int(port or _DB["port"]),
+            "user": user or str(_DB["user"]),
+            "password": password if password is not None else str(_DB["password"]),
             "charset": "utf8mb4",
             "autocommit": True,
         }
-        self.database = database
+        self.database = database or str(_DB["database"])
 
     def _connect(self, *, with_database: bool = True) -> pymysql.connections.Connection:
         kwargs = dict(self._connect_kwargs)

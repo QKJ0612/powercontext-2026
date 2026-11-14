@@ -7,19 +7,23 @@ import json
 import sys
 
 from context_module.docs_store import DocStore
+from context_module.env import defaults as _db_defaults
 from context_module.selector import build_context
 from context_module.state_store import record_task_state
+
+
+_DB = _db_defaults()
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Select SDD context for one development task.")
     parser.add_argument("--task", required=True, help="development task description")
     parser.add_argument("--state-db", default=".sdd/state.db", help="PowerContext SQLite database path")
-    parser.add_argument("--host", default="127.0.0.1", help="seekdb host")
-    parser.add_argument("--port", type=int, default=2881, help="seekdb port")
-    parser.add_argument("--user", default="root", help="seekdb user")
-    parser.add_argument("--password", default="", help="seekdb password")
-    parser.add_argument("--database", default="sdd_context", help="seekdb database")
+    parser.add_argument("--host", default=str(_DB["host"]), help="seekdb host (SEEDB_HOST)")
+    parser.add_argument("--port", type=int, default=int(_DB["port"]), help="seekdb port (SEEDB_PORT, default 2881)")
+    parser.add_argument("--user", default=str(_DB["user"]), help="seekdb user (SEEDB_USER)")
+    parser.add_argument("--password", default=str(_DB["password"]), help="seekdb password (SEEDB_PASSWORD)")
+    parser.add_argument("--database", default=str(_DB["database"]), help="seekdb database (SEEDB_DATABASE)")
     parser.add_argument("--json", action="store_true", help="print the full JSON context")
     parser.add_argument("--record-status", choices=("pending", "completed"), help="persist a task state record")
     parser.add_argument("--record-summary", default="", help="summary stored with the task state record")

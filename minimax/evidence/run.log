@@ -1,0 +1,8 @@
+selfcheck started at 2026-11-14T12:25:31+08:00
+mode: offline (no model network call, no API key required)
+before snapshot: /home/zhuxuanyu/pc-ecosystem/minimax/evidence/before_orders.py
+recorded session: /home/zhuxuanyu/pc-ecosystem/minimax/evidence/minimax_session.json
+temporary project: /tmp/minimax-selfcheck-0s68uynw/sample_project (working tree untouched)
+before: exit=1 counts={'failed': 3, 'passed': 3, 'errors': 0} failed=['tests/test_orders.py::test_combines_status_and_minimum_amount', 'tests/test_orders.py::test_filters_by_minimum_amount', 'tests/test_orders.py::test_minimum_amount_is_inclusive_boundary']
+after: exit=0 counts={'failed': 0, 'passed': 6, 'errors': 0}
+selfcheck ok=True

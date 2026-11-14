@@ -1,0 +1,7 @@
+$ python -m context_service.server --port 49463 --db-port 2881 (pid=1443)
+GET http://127.0.0.1:49463/health -> {"ok": true, "service": "sdd-context-service", "seekdb": "127.0.0.1:2881/test", "documents": 4, "state_db": "/home/zhuxuanyu/pc-ecosystem/minimax/.sdd/state.db", "retrieval": "bm25"}
+POST http://127.0.0.1:49463/context -> HTTP 200
+GET http://127.0.0.1:49463/state -> HTTP 200
+GET http://127.0.0.1:49463/mcp/tool -> HTTP 200
+server stopped (exit=-15)
+{"ok": true, "checks": [{"name": "health ok", "ok": true}, {"name": "POST /context returns specs/code/tests", "ok": true, "detail": {"specs": 2, "code": 1, "tests": 1}}, {"name": "retrieval is BM25 and sees spec version 2", "ok": true, "detail": {"algorithm": "bm25", "k1": 1.5, "b": 0.75, "documents": 4, "spec_version": 2, "version_weight": 0.2}}, {"name": "spec comes from docs/spec-orders.md", "ok": true}, {"name": "GET /state returns the PowerContext slice", "ok": true}, {"name": "MCP tool descriptor served", "ok": true}]}

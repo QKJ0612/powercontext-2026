@@ -1,0 +1,61 @@
+{
+  "name": "sdd_context",
+  "title": "SDD engineering context",
+  "description": "Return BM25-ranked specs, code snippets, tests and persisted PowerContext task state for a development task. The same contract is served by POST /context; this file is the MCP-style tool descriptor so an agent host can register it.",
+  "version": "1.0.0",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "task": {
+        "type": "string",
+        "description": "Natural-language development task, e.g. add an inclusive min_amount_cents filter."
+      },
+      "per_kind": {
+        "type": "integer",
+        "default": 3,
+        "minimum": 1,
+        "maximum": 10,
+        "description": "How many specs/code/tests entries to return per kind."
+      }
+    },
+    "required": ["task"],
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object",
+    "properties": {
+      "task": {"type": "string"},
+      "specs": {"type": "array", "items": {"type": "object"}},
+      "code": {"type": "array", "items": {"type": "object"}},
+      "tests": {"type": "array", "items": {"type": "object"}},
+      "state": {
+        "type": "object",
+        "properties": {
+          "completed": {"type": "array", "items": {"type": "string"}},
+          "pending": {"type": "array", "items": {"type": "string"}},
+          "verified": {"type": "array", "items": {"type": "object"}},
+          "history": {"type": "array", "items": {"type": "object"}}
+        }
+      },
+      "retrieval": {
+        "type": "object",
+        "properties": {
+          "algorithm": {"type": "string", "const": "bm25"},
+          "spec_version": {"type": "integer"},
+          "documents": {"type": "integer"}
+        }
+      }
+    }
+  },
+  "transport": {
+    "type": "http",
+    "method": "POST",
+    "url": "http://127.0.0.1:8765/context",
+    "contentType": "application/json"
+  },
+  "annotations": {
+    "readOnlyHint": true,
+    "idempotentHint": true,
+    "openWorldHint": false
+  }
+}

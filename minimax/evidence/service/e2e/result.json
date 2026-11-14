@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "base_url": "http://127.0.0.1:51953",
+  "checks": [
+    {
+      "name": "minimax_patch.py --context-url exits 0",
+      "ok": true
+    },
+    {
+      "name": "before failed / after all passed",
+      "ok": true,
+      "detail": {
+        "before": {
+          "failed": 3,
+          "passed": 3,
+          "errors": 0
+        },
+        "after": {
+          "failed": 0,
+          "passed": 6,
+          "errors": 0
+        }
+      }
+    },
+    {
+      "name": "context came from the HTTP service",
+      "ok": true,
+      "detail": {
+        "context_source": "http",
+        "context_url": "http://127.0.0.1:51953/context",
+        "retrieval": {
+          "algorithm": "bm25",
+          "k1": 1.5,
+          "b": 0.75,
+          "documents": 4,
+          "spec_version": 2,
+          "version_weight": 0.2
+        }
+      }
+    },
+    {
+      "name": "session keeps prompt + raw reply + diff provenance",
+      "ok": true,
+      "detail": {
+        "prompt_len": 2504,
+        "mode": "offline_replay"
+      }
+    }
+  ]
+}

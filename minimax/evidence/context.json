@@ -40,24 +40,8 @@
   ],
   "state": {
     "completed": [],
-    "pending": [
-      "初始任务"
-    ],
+    "pending": [],
     "verified": [],
-    "history": [
-      {
-        "context_sources": [
-          "docs/design-notes.md",
-          "docs/spec-orders.md",
-          "sample_project/app/orders.py",
-          "sample_project/tests/test_orders.py"
-        ],
-        "kind": "sdd-task",
-        "status": "pending",
-        "summary": "初始任务",
-        "task": "给订单查询增加金额下限筛选，边界值要包含",
-        "verification": ""
-      }
-    ]
+    "history": []
   }
 }

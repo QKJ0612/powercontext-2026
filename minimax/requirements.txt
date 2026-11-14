@@ -1,0 +1,3 @@
+powercontext==1.2.0
+pymysql>=1.1
+pytest>=8.0

@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-11-14T12:25:32+08:00",
+  "mode": "offline_selfcheck",
+  "ok": true,
+  "session": "/home/zhuxuanyu/pc-ecosystem/minimax/evidence/minimax_session.json",
+  "before_snapshot": "/home/zhuxuanyu/pc-ecosystem/minimax/evidence/before_orders.py",
+  "checks": [
+    {
+      "name": "before: 3 target tests fail",
+      "ok": true,
+      "detail": {
+        "failed": 3,
+        "passed": 3,
+        "errors": 0
+      }
+    },
+    {
+      "name": "after: all 6 tests pass",
+      "ok": true,
+      "detail": {
+        "failed": 0,
+        "passed": 6,
+        "errors": 0
+      }
+    },
+    {
+      "name": "replay is labelled offline",
+      "ok": true,
+      "detail": "offline_replay"
+    }
+  ],
+  "logs": {
+    "before": "/home/zhuxuanyu/pc-ecosystem/minimax/evidence/test_before_offline.log",
+    "after": "/home/zhuxuanyu/pc-ecosystem/minimax/evidence/test_after_offline.log"
+  }
+}

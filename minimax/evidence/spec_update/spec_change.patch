@@ -1,0 +1,6 @@
+--- a/minimax/docs/spec-orders.md
++++ b/minimax/docs/spec-orders.md
+-# 订单查询规格（SDD 样例）
++# 订单查询规格（SDD 样例｜SPEC-UPDATE-DEMO-2026-11-14）
+-- 边界值必须包含（等于下限的订单保留）。
++- 边界值必须包含（等于下限的订单保留；SPEC-UPDATE-DEMO-2026-11-14 已复核）。

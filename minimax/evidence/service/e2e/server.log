@@ -1,0 +1,4 @@
+context service listening on http://127.0.0.1:51953 (seekdb 127.0.0.1:2881/test)
+[service] "GET /health HTTP/1.1" 200 -
+[powercontext] read 3 state record(s) from /home/zhuxuanyu/pc-ecosystem/minimax/.sdd/state.db for query='给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变'
+[service] "POST /context HTTP/1.1" 200 -

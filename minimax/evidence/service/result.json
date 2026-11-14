@@ -1,0 +1,50 @@
+{
+  "ok": true,
+  "base_url": "http://127.0.0.1:49463",
+  "task": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+  "checks": [
+    {
+      "name": "health ok",
+      "ok": true
+    },
+    {
+      "name": "POST /context returns specs/code/tests",
+      "ok": true,
+      "detail": {
+        "specs": 2,
+        "code": 1,
+        "tests": 1
+      }
+    },
+    {
+      "name": "retrieval is BM25 and sees spec version 2",
+      "ok": true,
+      "detail": {
+        "algorithm": "bm25",
+        "k1": 1.5,
+        "b": 0.75,
+        "documents": 4,
+        "spec_version": 2,
+        "version_weight": 0.2
+      }
+    },
+    {
+      "name": "spec comes from docs/spec-orders.md",
+      "ok": true
+    },
+    {
+      "name": "GET /state returns the PowerContext slice",
+      "ok": true
+    },
+    {
+      "name": "MCP tool descriptor served",
+      "ok": true
+    }
+  ],
+  "artifacts": {
+    "context": "/home/zhuxuanyu/pc-ecosystem/minimax/evidence/service/context.json",
+    "state": "/home/zhuxuanyu/pc-ecosystem/minimax/evidence/service/state.json",
+    "health": "/home/zhuxuanyu/pc-ecosystem/minimax/evidence/service/health.json",
+    "mcp_tool": "/home/zhuxuanyu/pc-ecosystem/minimax/evidence/service/mcp-tool.json"
+  }
+}

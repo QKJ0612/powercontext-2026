@@ -1,0 +1,19 @@
+{
+  "mode": "offline_replay",
+  "model": "MiniMax-M3.1-Flash",
+  "endpoint": "https://api.minimaxi.com",
+  "elapsed_ms": null,
+  "before_exit": 1,
+  "before_counts": {
+    "failed": 3,
+    "passed": 3,
+    "errors": 0
+  },
+  "after_exit": 0,
+  "after_counts": {
+    "failed": 0,
+    "passed": 6,
+    "errors": 0
+  },
+  "evidence_dir": "/home/zhuxuanyu/pc-ecosystem/minimax/evidence/service/e2e/patch"
+}
