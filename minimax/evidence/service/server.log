@@ -1,0 +1,7 @@
+context service listening on http://127.0.0.1:45981 (seekdb 127.0.0.1:2896/sdd_context)
+[service] "GET /health HTTP/1.1" 200 -
+[powercontext] read 3 state record(s) from /home/zhuxuanyu/pc-ecosystem/minimax/.sdd/state.db for query='给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变'
+[service] "POST /context HTTP/1.1" 200 -
+[powercontext] read 3 state record(s) from /home/zhuxuanyu/pc-ecosystem/minimax/.sdd/state.db for query='给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变'
+[service] "GET /state?task=%E7%BB%99%E8%AE%A2%E5%8D%95%E6%9F%A5%E8%AF%A2%E5%A2%9E%E5%8A%A0%E9%87%91%E9%A2%9D%E4%B8%8B%E9%99%90%E7%AD%9B%E9%80%89%EF%BC%88%E5%90%AB%E8%BE%B9%E7%95%8C%EF%BC%89%EF%BC%8C%E4%BF%9D%E6%8C%81%E6%97%A2%E6%9C%89%E7%8A%B6%E6%80%81%E7%AD%9B%E9%80%89%E4%B8%8E%E5%90%88%E8%AE%A1%E8%A1%8C%E4%B8%BA%E4%B8%8D%E5%8F%98 HTTP/1.1" 200 -
+[service] "GET /mcp/tool HTTP/1.1" 200 -

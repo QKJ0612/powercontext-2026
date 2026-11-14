@@ -1,0 +1,126 @@
+{
+  "task": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+  "specs": [
+    {
+      "doc_id": "spec:spec-orders.md",
+      "kind": "spec",
+      "source": "docs/spec-orders.md",
+      "title": "spec orders",
+      "score": 0.5556,
+      "excerpt": "# 订单查询规格（SDD 样例｜SPEC-UPDATE-DEMO-2026-11-14） 本文件是样例工程的需求规格，用于演示\"规格驱动\"的上下文选择。 ## REQ-ORDER-1 状态筛选 `find_orders(orders, status=...)` 只返回状态完全相等的订单，且保持入参顺序。 ## REQ-ORDER-2 金额合计 `total_amount(orders)` 返回所有订单金额（分）之和，不做筛选。 ## REQ-ORDER-3 金额下限筛选 `find_orders` 新增可选关键字参数 `min_amount_cents`： - 传入时只保留 `amount_cents >= min_amount_cents` 的订单。 - 边界值必须包含（等于下限的订单保留；SPEC-UPDATE-DEMO-2026-11-14 已复核）。 - 与 `status` 同…"
+    },
+    {
+      "doc_id": "spec:design-notes.md",
+      "kind": "spec",
+      "source": "docs/design-notes.md",
+      "title": "design notes",
+      "score": 0.3333,
+      "excerpt": "# 设计备忘（样例工程） ## 模块边界 - `app/orders.py`：纯函数，无 I/O，便于测试。 - `tests/test_orders.py`：目标测试（金额下限）与回归测试（状态筛选、全量、合计）分开命名。 ## 为什么用关键字参数 现有调用方都以 `status=` 关键字调用，新增筛选必须保持关键字形态，避免破坏位置参数语义。 ## 变更风险 - 过滤顺序：先状态后金额或反之，结果集合相同，但必须保持输入顺序。 - 空输入与 `None` 参数：`min_amount_cents=None` 表示不过滤，不能当成 0。"
+    }
+  ],
+  "code": [
+    {
+      "doc_id": "code:orders.py",
+      "kind": "code",
+      "source": "sample_project/app/orders.py",
+      "title": "orders",
+      "score": 0.0,
+      "excerpt": "\"\"\"Order query helpers for the SDD demo project (before state).\"\"\" from __future__ import annotations from dataclasses import dataclass from typing import Iterable @dataclass(frozen=True) class Order: order_id: str customer: str status: str amount_cents: int created_at: str def find_orders( orders: Iterable[Order], *, status: str | None = None, min_amount_cents: int | None = None, ) -> list[Order…"
+    }
+  ],
+  "tests": [
+    {
+      "doc_id": "test:test_orders.py",
+      "kind": "test",
+      "source": "sample_project/tests/test_orders.py",
+      "title": "test_orders",
+      "score": 0.0,
+      "excerpt": "\"\"\"Acceptance and regression tests for the order query module.\"\"\" from __future__ import annotations from app.orders import Order, find_orders, total_amount def _order(order_id: str, status: str, amount_cents: int) -> Order: return Order( order_id=order_id, customer=\"c-\" + order_id, status=status, amount_cents=amount_cents, created_at=\"2026-01-01\", ) ORDERS = ( _order(\"o1\", \"paid\", 1200), _order(…"
+    }
+  ],
+  "state": {
+    "completed": [
+      "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+      "state-reuse-demo completed"
+    ],
+    "pending": [
+      "state-reuse-demo pending"
+    ],
+    "verified": [
+      {
+        "after_counts": {
+          "errors": 0,
+          "failed": 0,
+          "passed": 6
+        },
+        "after_exit": 0,
+        "before_counts": {
+          "errors": 0,
+          "failed": 3,
+          "passed": 3
+        },
+        "before_exit": 1,
+        "endpoint": "https://api.minimaxi.com",
+        "mode": "offline_replay",
+        "model": "MiniMax-M3.1-Flash"
+      }
+    ],
+    "history": [
+      {
+        "context_sources": [
+          "docs/spec-orders.md",
+          "docs/design-notes.md",
+          "sample_project/app/orders.py",
+          "sample_project/tests/test_orders.py"
+        ],
+        "kind": "sdd-task",
+        "status": "completed",
+        "summary": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+        "task": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+        "verification": {
+          "after_counts": {
+            "errors": 0,
+            "failed": 0,
+            "passed": 6
+          },
+          "after_exit": 0,
+          "before_counts": {
+            "errors": 0,
+            "failed": 3,
+            "passed": 3
+          },
+          "before_exit": 1,
+          "endpoint": "https://api.minimaxi.com",
+          "mode": "offline_replay",
+          "model": "MiniMax-M3.1-Flash"
+        }
+      },
+      {
+        "context_sources": [
+          "docs/spec-orders.md",
+          "docs/design-notes.md",
+          "sample_project/app/orders.py",
+          "sample_project/tests/test_orders.py"
+        ],
+        "kind": "sdd-task",
+        "status": "pending",
+        "summary": "state-reuse-demo pending",
+        "task": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+        "verification": ""
+      },
+      {
+        "context_sources": [
+          "docs/spec-orders.md",
+          "docs/design-notes.md",
+          "sample_project/app/orders.py",
+          "sample_project/tests/test_orders.py"
+        ],
+        "kind": "sdd-task",
+        "status": "completed",
+        "summary": "state-reuse-demo completed",
+        "task": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+        "verification": ""
+      }
+    ]
+  }
+}

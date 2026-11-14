@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-11-14T12:24:22+08:00",
+  "models": [
+    "MiniMax-M3.1-Flash",
+    "MiniMax-M2.5"
+  ],
+  "endpoints": [
+    "https://api.minimaxi.com",
+    "https://api.minimax.chat"
+  ],
+  "attempts": [
+    {
+      "endpoint": "https://api.minimaxi.com",
+      "model": "MiniMax-M3.1-Flash",
+      "attempt": 1,
+      "ok": true,
+      "http_status": 200,
+      "request_id": "074715721a0fdb458a170fd4d08934b8",
+      "elapsed_ms": 4877,
+      "at": "2026-11-14T12:24:22+08:00"
+    }
+  ],
+  "winner": {
+    "model": "MiniMax-M3.1-Flash",
+    "endpoint": "https://api.minimaxi.com"
+  },
+  "failed": false,
+  "elapsed_ms": 4877
+}

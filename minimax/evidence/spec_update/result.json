@@ -1,0 +1,22 @@
+{
+  "ok": true,
+  "marker": "SPEC-UPDATE-DEMO-2026-11-14",
+  "spec": "/home/zhuxuanyu/pc-ecosystem/minimax/docs/spec-orders.md",
+  "checks": [
+    {
+      "name": "context excerpt changed after spec update + re-import",
+      "ok": true,
+      "detail": {
+        "marker": "SPEC-UPDATE-DEMO-2026-11-14",
+        "after_contains_marker": true
+      }
+    },
+    {
+      "name": "spec restored and re-imported (repository left clean)",
+      "ok": true,
+      "detail": {
+        "marker_absent": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "completed": [
+    "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+    "state-reuse-demo completed"
+  ],
+  "pending": [
+    "state-reuse-demo pending"
+  ],
+  "verified_count": 1,
+  "history_count": 3,
+  "expected": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+  "expected_found": true
+}

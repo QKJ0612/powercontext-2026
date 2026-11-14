@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 from pathlib import Path
 
 STATE_KIND = "sdd-task-state"
@@ -60,6 +61,11 @@ async def _record(db_path: Path, payload: dict) -> str:
                 )
             )
         )
+    print(
+        f"[powercontext] wrote state kind={STATE_KIND} scope={scope.scope_id} db={db_path} "
+        f"task={payload.get('task')!r} status={payload.get('status')!r}",
+        file=sys.stderr,
+    )
     return scope.scope_id
 
 
@@ -81,6 +87,10 @@ async def _load(db_path: Path, query: str, limit: int) -> list[dict]:
                 records.append(json.loads(entry.entry.text))
             except ValueError:
                 continue
+    print(
+        f"[powercontext] read {len(records)} state record(s) from {db_path} for query={query!r}",
+        file=sys.stderr,
+    )
     return records
 
 

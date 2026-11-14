@@ -1,4 +1,7 @@
+# task: 给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变
+# mode: online
 $ /usr/bin/python3 -m pytest -q tests
+# cwd: /home/zhuxuanyu/pc-ecosystem/minimax/sample_project
 exit=1
 FFF...                                                                   [100%]
 =================================== FAILURES ===================================
@@ -33,4 +36,4 @@ tests/test_orders.py:40: TypeError
 FAILED tests/test_orders.py::test_filters_by_minimum_amount - TypeError: find...
 FAILED tests/test_orders.py::test_minimum_amount_is_inclusive_boundary - Type...
 FAILED tests/test_orders.py::test_combines_status_and_minimum_amount - TypeEr...
-3 failed, 3 passed in 0.01s
+3 failed, 3 passed in 0.02s

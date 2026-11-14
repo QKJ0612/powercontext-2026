@@ -1,0 +1,13 @@
+{
+  "mode": "offline_replay",
+  "replayed_at": "2026-11-14T12:25:43+08:00",
+  "source_session": "/home/zhuxuanyu/pc-ecosystem/minimax/evidence/minimax_session.json",
+  "recorded_at": "2026-11-14T12:24:22+08:00",
+  "request_model": "MiniMax-M3.1-Flash",
+  "recorded_endpoint": "https://api.minimaxi.com",
+  "recorded_elapsed_ms": 4877,
+  "target_sha256_before": "6e55590985c6fcd3caad83c8499a0ffbf34d75af6da57744eec71c0335ab08b9",
+  "patched_sha256": "0d9093f79d1c920e99fa74ddb0ca80713e971839b5407253cb85e0644bbed492",
+  "note": "offline replay of recorded MiniMax response from /home/zhuxuanyu/pc-ecosystem/minimax/evidence/minimax_session.json (recorded model=MiniMax-M3.1-Flash, recorded_at=2026-11-14T12:24:22+08:00); no network call was made",
+  "raw_reply": "```python\n\"\"\"Order query helpers for the SDD demo project (before state).\"\"\"\n\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass\nfrom typing import Iterable\n\n\n@dataclass(frozen=True)\nclass Order:\n    order_id: str\n    customer: str\n    status: str\n    amount_cents: int\n    created_at: str\n\n\ndef find_orders(\n    orders: Iterable[Order],\n    *,\n    status: str | None = None,\n    min_amount_cents: int | None = None,\n) -> list[Order]:\n    \"\"\"Return orders matching optional status and minimum amount filters.\"\"\"\n    result = list(orders)\n    if status is not None:\n        result = [order for order in result if order.status == status]\n    if min_amount_cents is not None:\n        result = [\n            order for order in result if order.amount_cents >= min_amount_cents\n        ]\n    return result\n\n\ndef total_amount(orders: Iterable[Order]) -> int:\n    \"\"\"Return the sum of order amounts in cents.\"\"\"\n    return sum(order.amount_cents for order in orders)\n```"
+}

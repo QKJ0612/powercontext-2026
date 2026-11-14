@@ -1,0 +1,8 @@
+# selfcheck: temporary copy of sample_project
+# app/orders.py replaced by an offline replay of the recorded MiniMax response
+# offline mode: no network access
+$ /usr/bin/python3 -m pytest -q tests/test_orders.py
+# cwd: /tmp/minimax-selfcheck-0s68uynw/sample_project
+exit=0
+......                                                                   [100%]
+6 passed in 0.01s

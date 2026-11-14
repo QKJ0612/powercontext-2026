@@ -1,0 +1,4 @@
+[powercontext] read 2 state record(s) from /home/zhuxuanyu/pc-ecosystem/minimax/.sdd/state.db for query='给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变'
+[powercontext] wrote state kind=sdd-task-state scope=scp_2sferhhj4jcvman96cy1ttam7n db=/home/zhuxuanyu/pc-ecosystem/minimax/.sdd/state.db task='给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变' status='completed'
+[offline] offline replay of recorded MiniMax response from /home/zhuxuanyu/pc-ecosystem/minimax/evidence/minimax_session.json (recorded model=MiniMax-M3.1-Flash, recorded_at=2026-11-14T12:24:22+08:00); no network call was made
+{"mode": "offline_replay", "model": "MiniMax-M3.1-Flash", "endpoint": "https://api.minimaxi.com", "elapsed_ms": null, "before_exit": 1, "before_counts": {"failed": 3, "passed": 3, "errors": 0}, "after_exit": 0, "after_counts": {"failed": 0, "passed": 6, "errors": 0}, "evidence_dir": "/home/zhuxuanyu/pc-ecosystem/minimax/evidence/demo/patch"}

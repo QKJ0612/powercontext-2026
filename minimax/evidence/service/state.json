@@ -1,0 +1,88 @@
+{
+  "task": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+  "state": {
+    "completed": [
+      "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+      "state-reuse-demo completed"
+    ],
+    "pending": [
+      "state-reuse-demo pending"
+    ],
+    "verified": [
+      {
+        "after_counts": {
+          "errors": 0,
+          "failed": 0,
+          "passed": 6
+        },
+        "after_exit": 0,
+        "before_counts": {
+          "errors": 0,
+          "failed": 3,
+          "passed": 3
+        },
+        "before_exit": 1,
+        "endpoint": "https://api.minimaxi.com",
+        "mode": "offline_replay",
+        "model": "MiniMax-M3.1-Flash"
+      }
+    ],
+    "history": [
+      {
+        "context_sources": [
+          "docs/spec-orders.md",
+          "docs/design-notes.md",
+          "sample_project/app/orders.py",
+          "sample_project/tests/test_orders.py"
+        ],
+        "kind": "sdd-task",
+        "status": "completed",
+        "summary": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+        "task": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+        "verification": {
+          "after_counts": {
+            "errors": 0,
+            "failed": 0,
+            "passed": 6
+          },
+          "after_exit": 0,
+          "before_counts": {
+            "errors": 0,
+            "failed": 3,
+            "passed": 3
+          },
+          "before_exit": 1,
+          "endpoint": "https://api.minimaxi.com",
+          "mode": "offline_replay",
+          "model": "MiniMax-M3.1-Flash"
+        }
+      },
+      {
+        "context_sources": [
+          "docs/spec-orders.md",
+          "docs/design-notes.md",
+          "sample_project/app/orders.py",
+          "sample_project/tests/test_orders.py"
+        ],
+        "kind": "sdd-task",
+        "status": "completed",
+        "summary": "state-reuse-demo completed",
+        "task": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+        "verification": ""
+      },
+      {
+        "context_sources": [
+          "docs/spec-orders.md",
+          "docs/design-notes.md",
+          "sample_project/app/orders.py",
+          "sample_project/tests/test_orders.py"
+        ],
+        "kind": "sdd-task",
+        "status": "pending",
+        "summary": "state-reuse-demo pending",
+        "task": "给订单查询增加金额下限筛选（含边界），保持既有状态筛选与合计行为不变",
+        "verification": ""
+      }
+    ]
+  }
+}
